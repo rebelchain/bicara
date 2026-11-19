@@ -16,49 +16,80 @@ const DOC_MANIFEST: Array<Omit<BicaraDocFile, 'content'>> = [
     filename: 'CLAUDE.md',
     relativePath: 'bicara-docs/CLAUDE.md',
     category: 'Root',
-    summary: 'Single source of truth, verified 2026 SDK tracks, 9-step core flow, hardcoded rules, and Key APIs.',
+    summary:
+      'Single source of truth: global accessibility layer pitch, 5-layer security, Quote-Only Swap, hardcoded rules, and TBD demo script.',
   },
   {
     id: 'progress',
     filename: 'PROGRESS.md',
     relativePath: 'bicara-docs/PROGRESS.md',
     category: 'Root',
-    summary: '10-day pre-hackathon prototype plan, 72-hour hackathon execution schedule, and SDK matrix.',
-  },
-  {
-    id: 'architecture',
-    filename: 'ARCHITECTURE.md',
-    relativePath: 'bicara-docs/docs/ARCHITECTURE.md',
-    category: 'Specs',
-    summary: 'Full topology with API Proxy boundary, hybrid Supabase + Anchor PDA resolution, and error matrix.',
-  },
-  {
-    id: 'voice',
-    filename: 'VOICE_SPEC.md',
-    relativePath: 'bicara-docs/docs/VOICE_SPEC.md',
-    category: 'Specs',
-    summary: 'expo-audio capture, ElevenLabs scribe_v2 keyterm_prompt, eleven_flash_v2_5 TTS, and NLU schema.',
-  },
-  {
-    id: 'mobile',
-    filename: 'MOBILE_SPEC.md',
-    relativePath: 'bicara-docs/docs/MOBILE_SPEC.md',
-    category: 'Specs',
-    summary: 'Expo Custom Dev Client (no Expo Go), MobileWalletProvider setup, 3 tabs, and UI design tokens.',
-  },
-  {
-    id: 'program',
-    filename: 'PROGRAM_SPEC.md',
-    relativePath: 'bicara-docs/docs/PROGRAM_SPEC.md',
-    category: 'Specs',
-    summary: 'Anchor ContactRegistry via AVM, @anchor-lang/core + Codama, and lowercase PDA normalization.',
+    summary:
+      'Gate A/B/C schedule (Nov 20–29), hardware measurement log, Pivot Log, Open Questions, Risks, and code-sync backlog.',
   },
   {
     id: 'project',
     filename: 'PROJECT.md',
     relativePath: 'bicara-docs/docs/PROJECT.md',
     category: 'Specs',
-    summary: 'Dev3pack Global Hackathon judge one-pager, problem statement, sponsor touchpoints, and prizes.',
+    summary:
+      'Global accessibility pitch, verified WHO 2.2B & SOUPS/arXiv evidence, Prior Art, ElevenLabs highlights, and MIT roadmap.',
+  },
+  {
+    id: 'architecture',
+    filename: 'ARCHITECTURE.md',
+    relativePath: 'bicara-docs/docs/ARCHITECTURE.md',
+    category: 'Specs',
+    summary:
+      'Reusable accessible-signing module boundary, unified TxSummary flow, Jupiter Swap V2 signing distinction, and English routing.',
+  },
+  {
+    id: 'security-model',
+    filename: 'SECURITY_MODEL.md',
+    relativePath: 'bicara-docs/docs/SECURITY_MODEL.md',
+    category: 'Specs',
+    summary:
+      'Five-layer "Voice Identifies, Hardware Authorizes" threat model, replay/clone limits, and honest claims vs. non-claims.',
+  },
+  {
+    id: 'red-team-demo',
+    filename: 'RED_TEAM_DEMO.md',
+    relativePath: 'bicara-docs/docs/RED_TEAM_DEMO.md',
+    category: 'Specs',
+    summary:
+      'Ethical ElevenLabs self-voice clone red-team script, scam-token & transfer attack scenarios, and expected honest outcomes.',
+  },
+  {
+    id: 'hackathon-compliance',
+    filename: 'HACKATHON_COMPLIANCE.md',
+    relativePath: 'bicara-docs/docs/HACKATHON_COMPLIANCE.md',
+    category: 'Specs',
+    summary:
+      'Dev3pack open-source MIT License plan, hackathon-start tag hygiene, UNVERIFIED organizer TODOs, and pre- vs. during-hackathon split.',
+  },
+  {
+    id: 'mobile',
+    filename: 'MOBILE_SPEC.md',
+    relativePath: 'bicara-docs/docs/MOBILE_SPEC.md',
+    category: 'Specs',
+    summary:
+      'English locale dictionary requirement, Android-wide MWA (Seeker-only Seed Vault), TxSummary confirm sheet, and gated ladder.',
+  },
+  {
+    id: 'voice',
+    filename: 'VOICE_SPEC.md',
+    relativePath: 'bicara-docs/docs/VOICE_SPEC.md',
+    category: 'Specs',
+    summary:
+      'English script library, Send & Quote-Only Swap TxSummary templates, dynamic scribe_v2 keyterms limits, and Layer 2 challenge.',
+  },
+  {
+    id: 'program',
+    filename: 'PROGRAM_SPEC.md',
+    relativePath: 'bicara-docs/docs/PROGRAM_SPEC.md',
+    category: 'Specs',
+    summary:
+      'Gate C Anchor ContactRegistry verified address book, biometric-gated writes, and open non-ASCII seed normalization flag.',
   },
 ];
 
