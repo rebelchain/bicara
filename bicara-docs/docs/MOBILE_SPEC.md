@@ -6,8 +6,8 @@
 Framework:       React Native 0.79.2 + Expo SDK 53 (~53.0.23) with expo-dev-client
 Routing:         Expo Router (~5.0.0, file-based tabs)
 Entry & Boot:    mobile/index.js → imports ./polyfill (mobile/polyfill.js) BEFORE expo-router/entry
-Crypto Polyfill: react-native-get-random-values + react-native-quick-crypto (^1.1.10)
-                 + react-native-quick-base64 (^3.0.2) + react-native-nitro-modules (0.35.0)
+Crypto Polyfill: react-native-get-random-values + react-native-quick-crypto (1.1.2)
+                 + react-native-quick-base64 (2.2.2) + react-native-nitro-modules (0.35.0)
                  + mobile/metro.config.js ('crypto' -> 'react-native-quick-crypto')
 Wallet (Layer 5):@solana/kit (^8.6.0) + @wallet-ui/react-native-kit (^4.4.1)
                  + @solana-mobile/mobile-wallet-adapter-protocol-kit (^3.0.2)

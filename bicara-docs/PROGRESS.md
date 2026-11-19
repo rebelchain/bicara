@@ -131,7 +131,7 @@ Audio I/O:               expo-audio (~0.4.0 — replaces deprecated expo-av)
 Voiceprint (Optional):   @picovoice/eagle-react-native + expo-secure-store
 Tactile & Screen Reader: expo-haptics (~14.1.0) + React Native AccessibilityInfo
 Polyfills (Boot Line 1): mobile/polyfill.js (react-native-get-random-values +
-                         react-native-quick-crypto@^1.1.10 + react-native-quick-base64@^3.0.2 +
+                         react-native-quick-crypto@1.1.2 + react-native-quick-base64@2.2.2 +
                          react-native-nitro-modules@0.35.0) + mobile/metro.config.js
 MWA (Track A - Kit):     @solana/kit@^8.6.0 + @wallet-ui/react-native-kit@^4.4.1 +
                          @solana-mobile/mobile-wallet-adapter-protocol-kit@^3.0.2
