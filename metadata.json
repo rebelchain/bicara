@@ -1,0 +1,6 @@
+{
+  "name": "Bicara — Voice USDC Prototype & Architecture Studio",
+  "description": "Interactive Solana Mobile voice-to-USDC payment prototype, 2026 SDK migration workbench, and hackathon documentation suite for Bicara.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
