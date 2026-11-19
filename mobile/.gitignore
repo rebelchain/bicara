@@ -1,0 +1,20 @@
+# Expo & React Native native build artifacts
+node_modules/
+.expo/
+dist/
+android/
+ios/
+
+# Local secrets & signing keystores (NEVER commit)
+.env*
+!.env.example
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.keystore
+
+# Logs & OS files
+*.log
+.DS_Store

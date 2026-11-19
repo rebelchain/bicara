@@ -35,12 +35,20 @@ const MOBILE_MANIFEST: Array<Omit<MobileScaffoldFile, 'content'>> = [
     purpose: 'Installs react-native-get-random-values and react-native-quick-crypto on Hermes.',
   },
   {
+    id: 'metro-config',
+    label: 'metro.config.js',
+    relativePath: 'mobile/metro.config.js',
+    category: 'Boot & Config',
+    stepTag: 'Step 1',
+    purpose: 'Maps Node crypto imports to native react-native-quick-crypto in Metro.',
+  },
+  {
     id: 'package',
     label: 'package.json',
     relativePath: 'mobile/package.json',
     category: 'Boot & Config',
     stepTag: 'Step 1',
-    purpose: 'Expo Custom Dev Build Track A dependencies (@solana/kit, wallet-ui, haptics, expo-audio).',
+    purpose: 'Expo Custom Dev Build Track A dependencies (@solana/kit v8, wallet-ui v4, haptics, expo-audio).',
   },
   {
     id: 'app-json',

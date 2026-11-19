@@ -10,8 +10,10 @@ import {
 export default function RootLayout() {
   return (
     <MobileWalletProvider
-      chain={SOLANA_CHAIN_ID}
-      endpoint={SOLANA_DEVNET_RPC}
+      cluster={{
+        id: SOLANA_CHAIN_ID,
+        url: SOLANA_DEVNET_RPC,
+      }}
       identity={BICARA_APP_IDENTITY}
     >
       <StatusBar style="light" backgroundColor="#0B0D0E" />
