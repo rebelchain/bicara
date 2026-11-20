@@ -17,18 +17,18 @@ export default function SpokenTabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#0F1215',
-          borderTopColor: '#1E2329',
-          height: 68,
+          backgroundColor: '#0F0F0F',
+          borderTopColor: '#262626',
+          height: 70,
           paddingBottom: 10,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: '#22C55E',
-        tabBarInactiveTintColor: '#64748B',
+        tabBarActiveTintColor: '#CCFF00',
+        tabBarInactiveTintColor: '#71717A',
         tabBarIcon: ({ focused, color }) => (
           <View
             style={{
-              width: focused ? 24 : 8,
+              width: focused ? 28 : 8,
               height: 4,
               borderRadius: 999,
               backgroundColor: color,
@@ -37,7 +37,7 @@ export default function SpokenTabsLayout() {
         ),
         tabBarLabelStyle: {
           fontSize: 13,
-          fontWeight: '600',
+          fontWeight: '700',
         },
       }}
     >

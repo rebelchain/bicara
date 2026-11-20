@@ -43,14 +43,14 @@ export default function DocsWorkspace({ docs }: DocsWorkspaceProps) {
 
   return (
     <section aria-label="Updated Bicara Documentation Repository" className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-[#22272D]">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-white/10">
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-[#94A3B8]">
+          <p className="text-xs font-medium text-[#CCFF00]">
             Live repository files · /bicara-docs/ · Synced with 2026 SDK audit
           </p>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#F8FAFC] [text-wrap:balance]">
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#F4F4F5] [text-wrap:balance]">
             Updated Bicara Documentation Suite
-          </h1>
+          </h2>
         </div>
 
         {activeDoc && (
@@ -58,12 +58,12 @@ export default function DocsWorkspace({ docs }: DocsWorkspaceProps) {
             <button
               type="button"
               onClick={handleCopy}
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-[#E2E8F0] bg-[#14171A] border border-[#262B30] hover:border-[#3A414A] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-[#F4F4F5] bg-[#1A1A1A] border border-white/15 hover:border-[#CCFF00]/50 rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               {copied ? (
                 <>
-                  <Check className="w-3.5 h-3.5 text-[#22C55E]" />
-                  <span className="text-[#22C55E]">Copied Markdown</span>
+                  <Check className="w-3.5 h-3.5 text-[#CCFF00]" />
+                  <span className="text-[#CCFF00]">Copied Markdown</span>
                 </>
               ) : (
                 <>
@@ -75,7 +75,7 @@ export default function DocsWorkspace({ docs }: DocsWorkspaceProps) {
             <button
               type="button"
               onClick={handleDownload}
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-[#052E16] bg-[#22C55E] hover:bg-[#16A34A] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-[#0F0F0F] bg-[#CCFF00] hover:bg-[#B3E600] rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Download {activeDoc.filename}</span>
@@ -88,10 +88,10 @@ export default function DocsWorkspace({ docs }: DocsWorkspaceProps) {
         {/* Sidebar Document Selector */}
         <aside
           aria-label="Documentation files"
-          className="lg:col-span-4 xl:col-span-3 bg-[#14171A] border border-[#23282E] rounded-xl p-4 space-y-5 lg:sticky lg:top-20"
+          className="lg:col-span-4 xl:col-span-3 bg-[#1A1A1A] border border-white/10 rounded-2xl p-4 space-y-5 lg:sticky lg:top-24"
         >
           <div className="space-y-1.5">
-            <div className="px-2 text-xs font-medium text-[#64748B]">bicara-docs/</div>
+            <div className="px-2 text-xs font-medium text-[#71717A]">bicara-docs/</div>
             <div className="space-y-1">
               {rootDocs.map((doc) => {
                 const isSelected = doc.id === activeDoc?.id;
@@ -100,22 +100,22 @@ export default function DocsWorkspace({ docs }: DocsWorkspaceProps) {
                     key={doc.id}
                     type="button"
                     onClick={() => setSelectedId(doc.id)}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors cursor-pointer ${
+                    className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors cursor-pointer ${
                       isSelected
-                        ? 'bg-[#1D2328] text-[#F8FAFC] border border-[#22C55E]/40'
-                        : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#191D21] border border-transparent'
+                        ? 'bg-[#CCFF00]/10 text-[#F4F4F5] border border-[#CCFF00]/40'
+                        : 'text-[#A1A1AA] hover:text-[#F4F4F5] hover:bg-white/5 border border-transparent'
                     }`}
                   >
                     <div className="flex items-center gap-2 font-mono text-xs font-medium">
                       <FileText
                         className={`w-3.5 h-3.5 shrink-0 ${
-                          isSelected ? 'text-[#22C55E]' : 'text-[#64748B]'
+                          isSelected ? 'text-[#CCFF00]' : 'text-[#71717A]'
                         }`}
                         aria-hidden="true"
                       />
                       <span className="truncate">{doc.filename}</span>
                     </div>
-                    <p className="mt-1 text-xs text-[#64748B] line-clamp-2 leading-snug">
+                    <p className="mt-1 text-xs text-[#71717A] line-clamp-2 leading-snug">
                       {doc.summary}
                     </p>
                   </button>
@@ -124,8 +124,8 @@ export default function DocsWorkspace({ docs }: DocsWorkspaceProps) {
             </div>
           </div>
 
-          <div className="space-y-1.5 pt-3 border-t border-[#22272D]">
-            <div className="px-2 text-xs font-medium text-[#64748B]">bicara-docs/docs/</div>
+          <div className="space-y-1.5 pt-3 border-t border-white/10">
+            <div className="px-2 text-xs font-medium text-[#71717A]">bicara-docs/docs/</div>
             <div className="space-y-1">
               {specDocs.map((doc) => {
                 const isSelected = doc.id === activeDoc?.id;
@@ -134,22 +134,22 @@ export default function DocsWorkspace({ docs }: DocsWorkspaceProps) {
                     key={doc.id}
                     type="button"
                     onClick={() => setSelectedId(doc.id)}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors cursor-pointer ${
+                    className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors cursor-pointer ${
                       isSelected
-                        ? 'bg-[#1D2328] text-[#F8FAFC] border border-[#22C55E]/40'
-                        : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#191D21] border border-transparent'
+                        ? 'bg-[#CCFF00]/10 text-[#F4F4F5] border border-[#CCFF00]/40'
+                        : 'text-[#A1A1AA] hover:text-[#F4F4F5] hover:bg-white/5 border border-transparent'
                     }`}
                   >
                     <div className="flex items-center gap-2 font-mono text-xs font-medium">
                       <FileText
                         className={`w-3.5 h-3.5 shrink-0 ${
-                          isSelected ? 'text-[#22C55E]' : 'text-[#64748B]'
+                          isSelected ? 'text-[#CCFF00]' : 'text-[#71717A]'
                         }`}
                         aria-hidden="true"
                       />
                       <span className="truncate">{doc.filename}</span>
                     </div>
-                    <p className="mt-1 text-xs text-[#64748B] line-clamp-2 leading-snug">
+                    <p className="mt-1 text-xs text-[#71717A] line-clamp-2 leading-snug">
                       {doc.summary}
                     </p>
                   </button>
@@ -160,11 +160,11 @@ export default function DocsWorkspace({ docs }: DocsWorkspaceProps) {
         </aside>
 
         {/* Markdown Reader */}
-        <article className="lg:col-span-8 xl:col-span-9 bg-[#14171A] border border-[#23282E] rounded-xl p-6 sm:p-8 min-w-0">
+        <article className="lg:col-span-8 xl:col-span-9 bg-[#1A1A1A] border border-white/10 rounded-2xl p-6 sm:p-8 min-w-0">
           {activeDoc && (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-4 mb-6 border-b border-[#22272D] text-xs text-[#94A3B8]">
-                <span className="font-mono text-[#E2E8F0]">{activeDoc.relativePath}</span>
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-4 mb-6 border-b border-white/10 text-xs text-[#A1A1AA]">
+                <span className="font-mono text-[#F4F4F5]">{activeDoc.relativePath}</span>
                 <span>Updated for Dev3pack Hackathon · Nov 2026</span>
               </div>
               <div className="bicara-markdown">

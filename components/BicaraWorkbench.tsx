@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'motion/react';
+import { ArrowLeft, Code2, Mic } from 'lucide-react';
 import {
   SEED_CONTACTS,
   SEED_TRANSACTIONS,
@@ -10,13 +11,13 @@ import {
 } from '@/lib/bicara-engine';
 import type { BicaraDocFile } from '@/lib/docs-loader';
 import type { MobileScaffoldFile } from '@/lib/mobile-scaffold-loader';
-import PrototypeWorkspace from './PrototypeWorkspace';
+import BicaraLanding from './BicaraLanding';
 import ArchitectureWorkspace from './ArchitectureWorkspace';
 import BuildKitWorkspace from './BuildKitWorkspace';
 import DocsWorkspace from './DocsWorkspace';
-import SprintWorkspace from './SprintWorkspace';
 
-type WorkspaceTab = 'prototype' | 'architecture' | 'buildkit' | 'docs' | 'sprint';
+type SurfaceMode = 'landing' | 'developers';
+type DeveloperTab = 'architecture' | 'buildkit' | 'docs';
 
 interface BicaraWorkbenchProps {
   docs: BicaraDocFile[];
@@ -27,7 +28,8 @@ const INITIAL_SENDER_USDC = 25.0;
 const INITIAL_SENDER_SOL = 1.85;
 
 export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchProps) {
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>('prototype');
+  const [surfaceMode, setSurfaceMode] = useState<SurfaceMode>('landing');
+  const [devTab, setDevTab] = useState<DeveloperTab>('architecture');
   const [contacts, setContacts] = useState<Contact[]>(SEED_CONTACTS);
   const [transactions, setTransactions] = useState<TransactionRecord[]>(SEED_TRANSACTIONS);
   const [senderBalanceUsdc, setSenderBalanceUsdc] = useState<number>(INITIAL_SENDER_USDC);
@@ -76,81 +78,118 @@ export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchPr
   };
 
   const handleRunDemoFlow = () => {
-    setActiveTab('prototype');
+    setSurfaceMode('landing');
     setWalletConnected(true);
     setDemoTriggerNonce((n) => n + 1);
   };
 
-  const navItems: Array<{ id: WorkspaceTab; label: string }> = [
-    { id: 'prototype', label: 'Prototype' },
+  const navigateToSection = (sectionId: string) => {
+    if (surfaceMode !== 'landing') {
+      setSurfaceMode('landing');
+      setTimeout(() => {
+        document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
+      }, 60);
+    } else {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleOpenDevelopers = (tab: DeveloperTab = 'architecture') => {
+    setDevTab(tab);
+    setSurfaceMode('developers');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const landingNavItems = [
+    { id: 'how-it-works', label: 'How It Works' },
+    { id: 'live-demo', label: 'Live Demo' },
+    { id: 'security', label: 'Security' },
+    { id: 'benchmarks', label: 'Benchmarks' },
+  ];
+
+  const developerTabs: Array<{ id: DeveloperTab; label: string }> = [
     { id: 'architecture', label: 'Architecture' },
     { id: 'buildkit', label: 'Build Kit' },
     { id: 'docs', label: 'Docs' },
-    { id: 'sprint', label: 'Sprint' },
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0B0D0E] text-[#F8FAFC]">
+    <div className="min-h-screen flex flex-col bg-[#0F0F0F] text-[#F4F4F5]">
       {/* Strict 3-Zone Top Bar Contract */}
-      <header className="sticky top-0 z-30 bg-[#0B0D0E]/95 backdrop-blur-md border-b border-[#1E2329]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3 sm:gap-8">
-          {/* Zone 1: Single-line Wordmark */}
+      <header className="sticky top-0 z-40 bg-[#0F0F0F]/90 backdrop-blur-md border-b border-white/[0.08]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-8">
+          {/* Zone 1: Single-line Brand Wordmark */}
           <button
             type="button"
-            onClick={() => setActiveTab('prototype')}
-            className="font-display text-base sm:text-lg font-bold tracking-tight text-[#F8FAFC] whitespace-nowrap shrink-0 cursor-pointer"
+            onClick={() => {
+              setSurfaceMode('landing');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="inline-flex items-center gap-2.5 whitespace-nowrap shrink-0 cursor-pointer"
           >
-            Bicara
+            <span className="w-8 h-8 rounded-xl bg-[#CCFF00] text-[#0F0F0F] flex items-center justify-center shrink-0">
+              <Mic className="w-4 h-4" aria-hidden="true" />
+            </span>
+            <span className="font-display text-xl font-extrabold tracking-tight text-[#F4F4F5]">
+              Bicara
+            </span>
           </button>
 
-          {/* Zone 2: 5 Clean Single-Line Nav Links */}
+          {/* Zone 2: 4 Clean Single-Line Text Nav Links */}
           <nav
-            aria-label="Primary workspace navigation"
-            className="flex items-center gap-2.5 sm:gap-6 overflow-x-auto"
+            aria-label="Primary navigation"
+            className="hidden md:flex items-center gap-7 text-sm font-medium text-[#A1A1AA]"
           >
-            {navItems.map((item) => {
-              const active = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveTab(item.id)}
-                  aria-current={active ? 'page' : undefined}
-                  className={`py-1.5 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0 border-b-2 cursor-pointer ${
-                    active
-                      ? 'text-[#F8FAFC] border-[#22C55E]'
-                      : 'text-[#94A3B8] border-transparent hover:text-[#F8FAFC]'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
+            {landingNavItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => navigateToSection(item.id)}
+                className="hover:text-[#CCFF00] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                {item.label}
+              </button>
+            ))}
           </nav>
 
           {/* Zone 3: 1 Primary Action */}
-          <div className="hidden sm:flex items-center shrink-0">
-            <button
-              type="button"
-              onClick={handleRunDemoFlow}
-              className="px-4 py-2 text-xs font-semibold text-[#052E16] bg-[#22C55E] hover:bg-[#16A34A] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-            >
-              Run Demo Flow
-            </button>
+          <div className="flex items-center shrink-0">
+            {surfaceMode === 'landing' ? (
+              <button
+                type="button"
+                onClick={() => handleOpenDevelopers('architecture')}
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold text-[#F4F4F5] hover:text-[#CCFF00] border border-white/20 hover:border-[#CCFF00] rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <Code2 className="w-4 h-4" aria-hidden="true" />
+                <span>Developers &amp; Judges</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setSurfaceMode('landing');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold text-[#0F0F0F] bg-[#CCFF00] hover:bg-[#B3E600] rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+                <span>Back to Landing</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Main Content Container */}
+      {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-7">
         <motion.div
-          key={activeTab}
+          key={surfaceMode === 'landing' ? 'landing' : `dev-${devTab}`}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
         >
-          {activeTab === 'prototype' && (
-            <PrototypeWorkspace
+          {surfaceMode === 'landing' ? (
+            <BicaraLanding
               contacts={contacts}
               transactions={transactions}
               senderBalanceUsdc={senderBalanceUsdc}
@@ -162,24 +201,74 @@ export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchPr
               onCompleteTransfer={handleCompleteTransfer}
               onResetBalances={handleResetBalances}
               demoTriggerNonce={demoTriggerNonce}
+              onRunDemoFlow={handleRunDemoFlow}
+              onOpenDevelopers={handleOpenDevelopers}
             />
+          ) : (
+            <div className="space-y-8">
+              {/* Developers & Judges Segmented Studio Bar (Sprint intentionally hidden; PROGRESS.md stays in Docs) */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#262626]">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-[#CCFF00]">
+                    Developers &amp; Judges Studio
+                  </p>
+                  <p className="text-sm text-[#A1A1AA]">
+                    Architecture blueprint, live mobile Expo scaffold, and complete repository docs
+                    (including PROGRESS.md).
+                  </p>
+                </div>
+
+                <div
+                  role="tablist"
+                  aria-label="Developer workspace sections"
+                  className="inline-flex items-center p-1 bg-[#1A1A1A] border border-[#262626] rounded-xl self-start sm:self-auto"
+                >
+                  {developerTabs.map((tab) => {
+                    const active = devTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => setDevTab(tab.id)}
+                        className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                          active
+                            ? 'bg-[#CCFF00] text-[#0F0F0F]'
+                            : 'text-[#A1A1AA] hover:text-[#F4F4F5]'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {devTab === 'architecture' && <ArchitectureWorkspace />}
+              {devTab === 'buildkit' && <BuildKitWorkspace mobileFiles={mobileFiles} />}
+              {devTab === 'docs' && <DocsWorkspace docs={docs} />}
+            </div>
           )}
-
-          {activeTab === 'architecture' && <ArchitectureWorkspace />}
-
-          {activeTab === 'buildkit' && <BuildKitWorkspace mobileFiles={mobileFiles} />}
-
-          {activeTab === 'docs' && <DocsWorkspace docs={docs} />}
-
-          {activeTab === 'sprint' && <SprintWorkspace />}
         </motion.div>
       </main>
 
       {/* Quiet Minimal Footer */}
-      <footer className="border-t border-[#1A1F25] py-5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-[#64748B]">
-          <span>Bicara · Spoken Transaction Verification &amp; accessible-signing Layer on Solana</span>
-          <span>Dev3pack Global Hackathon Prototype · Nov 27–29, 2026</span>
+      <footer className="border-t border-[#222222] py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#71717A]">
+          <span>
+            Bicara · Spoken Transaction Verification &amp; accessible-signing Layer on Solana
+          </span>
+          <div className="flex items-center gap-5">
+            <button
+              type="button"
+              onClick={() => handleOpenDevelopers('docs')}
+              className="hover:text-[#CCFF00] transition-colors cursor-pointer"
+            >
+              Documentation
+            </button>
+            <span>MIT License · Dev3pack Global Hackathon 2026</span>
+          </div>
         </div>
       </footer>
     </div>

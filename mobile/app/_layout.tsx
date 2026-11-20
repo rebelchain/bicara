@@ -18,11 +18,11 @@ export default function RootLayout() {
       identity={BICARA_APP_IDENTITY}
     >
       <BicaraStoreProvider>
-        <StatusBar style="light" backgroundColor="#0B0D0E" />
+        <StatusBar style="light" backgroundColor="#0F0F0F" />
         <Stack
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: '#0B0D0E' },
+            contentStyle: { backgroundColor: '#0F0F0F' },
           }}
         >
           <Stack.Screen name="(tabs)" />

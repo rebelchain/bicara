@@ -722,14 +722,14 @@ export default function PrototypeWorkspace({
   return (
     <section aria-label="Interactive Bicara Solana Mobile Prototype" className="space-y-5">
       {/* Compact Hero / Context Header */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 pb-4 border-b border-[#22272D]">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 pb-4 border-b border-white/10">
         <div className="space-y-1.5 max-w-2xl">
-          <p className="text-xs font-medium text-[#94A3B8]">
-            accessible-signing Layer · Built Blind-First for Everyone · Voice Identifies, Hardware Authorizes
+          <p className="text-xs font-medium text-[#CCFF00]">
+            Interactive Seeker Simulator · Built Blind-First for Everyone · Voice Identifies, Hardware Authorizes
           </p>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#F8FAFC] [text-wrap:balance]">
-            Spoken Transaction Verification Layer on Solana
-          </h1>
+          <h3 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#F4F4F5] [text-wrap:balance]">
+            Spoken Transaction Verification Sandbox
+          </h3>
         </div>
 
         {/* Engine, Audio & Reset Controls */}
@@ -737,15 +737,15 @@ export default function PrototypeWorkspace({
           <div
             role="group"
             aria-label="Intent Parser Engine"
-            className="inline-flex items-center p-1 bg-[#14171A] border border-[#262B30] rounded-lg"
+            className="inline-flex items-center p-1 bg-[#1A1A1A] border border-white/10 rounded-xl"
           >
             <button
               type="button"
               onClick={() => setNluMode('fallback')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 nluMode === 'fallback'
-                  ? 'bg-[#22C55E] text-[#052E16]'
-                  : 'text-[#94A3B8] hover:text-[#F8FAFC]'
+                  ? 'bg-[#CCFF00] text-[#0F0F0F]'
+                  : 'text-[#A1A1AA] hover:text-[#F4F4F5]'
               }`}
             >
               Offline Fallback
@@ -753,10 +753,10 @@ export default function PrototypeWorkspace({
             <button
               type="button"
               onClick={() => setNluMode('ai')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 nluMode === 'ai'
-                  ? 'bg-[#22C55E] text-[#052E16]'
-                  : 'text-[#94A3B8] hover:text-[#F8FAFC]'
+                  ? 'bg-[#CCFF00] text-[#0F0F0F]'
+                  : 'text-[#A1A1AA] hover:text-[#F4F4F5]'
               }`}
             >
               Gemini AI NLU
@@ -767,17 +767,17 @@ export default function PrototypeWorkspace({
             type="button"
             onClick={() => setTtsEnabled((v) => !v)}
             aria-pressed={ttsEnabled}
-            aria-label={ttsEnabled ? 'Matikan suara TTS' : 'Aktifkan suara TTS'}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-[#E2E8F0] bg-[#14171A] border border-[#262B30] hover:border-[#3A414A] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            aria-label={ttsEnabled ? 'Mute TTS voice' : 'Enable TTS voice'}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-[#F4F4F5] bg-[#1A1A1A] border border-white/10 hover:border-[#CCFF00]/40 rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             {ttsEnabled ? (
               <>
-                <Volume2 className="w-3.5 h-3.5 text-[#22C55E]" />
+                <Volume2 className="w-3.5 h-3.5 text-[#CCFF00]" />
                 <span>TTS On</span>
               </>
             ) : (
               <>
-                <VolumeX className="w-3.5 h-3.5 text-[#64748B]" />
+                <VolumeX className="w-3.5 h-3.5 text-[#71717A]" />
                 <span>TTS Muted</span>
               </>
             )}
@@ -798,7 +798,7 @@ export default function PrototypeWorkspace({
               setScreenCurtain(false);
             }}
             aria-label="Reset Devnet demo balances"
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-[#94A3B8] hover:text-[#F8FAFC] bg-[#14171A] border border-[#262B30] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-[#A1A1AA] hover:text-[#F4F4F5] bg-[#1A1A1A] border border-white/10 rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Reset Devnet</span>
@@ -807,17 +807,17 @@ export default function PrototypeWorkspace({
       </div>
 
       {/* Eyes-Free Accessibility & Speaker Verification Simulator Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#14171A] border border-[#23282E] rounded-xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#1A1A1A] border border-white/10 rounded-2xl">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 text-xs text-[#94A3B8]">
-            <Fingerprint className="w-4 h-4 text-[#22C55E]" aria-hidden="true" />
-            <span className="font-medium text-[#E2E8F0]">Speaker Voiceprint:</span>
+          <div className="flex items-center gap-2 text-xs text-[#A1A1AA]">
+            <Fingerprint className="w-4 h-4 text-[#CCFF00]" aria-hidden="true" />
+            <span className="font-medium text-[#F4F4F5]">Speaker Voiceprint:</span>
           </div>
 
           <div
             role="group"
-            aria-label="Simulasi Identitas Pembicara"
-            className="inline-flex items-center p-1 bg-[#0B0D0E] border border-[#262B30] rounded-lg"
+            aria-label="Speaker Identity Simulation"
+            className="inline-flex items-center p-1 bg-[#0F0F0F] border border-white/10 rounded-xl"
           >
             <button
               type="button"
@@ -826,10 +826,10 @@ export default function PrototypeWorkspace({
                 setActiveSpeaker('owner');
                 setLastVoiceprintResult(null);
               }}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
                 activeSpeaker === 'owner'
-                  ? 'bg-[#22C55E] text-[#052E16]'
-                  : 'text-[#94A3B8] hover:text-[#F8FAFC]'
+                  ? 'bg-[#CCFF00] text-[#0F0F0F]'
+                  : 'text-[#A1A1AA] hover:text-[#F4F4F5]'
               }`}
             >
               User A (Owner · Sim)
@@ -841,10 +841,10 @@ export default function PrototypeWorkspace({
                 setActiveSpeaker('impostor');
                 setLastVoiceprintResult(null);
               }}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
                 activeSpeaker === 'impostor'
                   ? 'bg-[#EF4444] text-white'
-                  : 'text-[#94A3B8] hover:text-[#F8FAFC]'
+                  : 'text-[#A1A1AA] hover:text-[#F4F4F5]'
               }`}
             >
               Impostor B (Unrecognized · Sim)
@@ -860,10 +860,10 @@ export default function PrototypeWorkspace({
               setScreenCurtain(false);
               setShowOnboarding(true);
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-[#E2E8F0] bg-[#0E1114] hover:bg-[#191E24] border border-[#262B30] hover:border-[#22C55E]/50 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-[#F4F4F5] bg-[#111111] hover:bg-white/5 border border-white/10 hover:border-[#CCFF00]/50 rounded-xl transition-colors whitespace-nowrap cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-[#22C55E]" aria-hidden="true" />
-            <span>Onboarding Suara</span>
+            <Sparkles className="w-3.5 h-3.5 text-[#CCFF00]" aria-hidden="true" />
+            <span>Voice Onboarding</span>
           </button>
 
           <button
@@ -875,15 +875,15 @@ export default function PrototypeWorkspace({
               setEyesFreeMode(next);
               if (next) {
                 speakOut(
-                  'Mode Eyes-Free aktif. Semua menu dibacakan dan sentuh layar di mana saja untuk bicara.',
+                  'Eyes-free mode enabled. All screens are spoken and tap anywhere to speak.',
                   'tick'
                 );
               }
             }}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border transition-colors whitespace-nowrap cursor-pointer ${
               eyesFreeMode
-                ? 'bg-[#112016] border-[#22C55E]/50 text-[#86EFAC]'
-                : 'bg-[#0E1114] border-[#262B30] text-[#94A3B8] hover:text-[#F8FAFC]'
+                ? 'bg-[#CCFF00]/10 border-[#CCFF00]/45 text-[#CCFF00]'
+                : 'bg-[#111111] border-white/10 text-[#A1A1AA] hover:text-[#F4F4F5]'
             }`}
           >
             <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
@@ -900,15 +900,15 @@ export default function PrototypeWorkspace({
               if (next) {
                 setEyesFreeMode(true);
                 speakOut(
-                  'Mode layar gelap aktif untuk demo tunanetra. Sentuh layar di mana saja untuk bicara.',
+                  'Screen curtain enabled for blind-first demo. Tap anywhere on screen to speak.',
                   'tick'
                 );
               }
             }}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border transition-colors whitespace-nowrap cursor-pointer ${
               screenCurtain
-                ? 'bg-[#1D2430] border-[#60A5FA]/60 text-[#BFDBFE]'
-                : 'bg-[#0E1114] border-[#262B30] text-[#E2E8F0] hover:border-[#3A414A]'
+                ? 'bg-[#3B82F6]/15 border-[#3B82F6]/60 text-[#93C5FD]'
+                : 'bg-[#111111] border-white/10 text-[#F4F4F5] hover:border-white/25'
             }`}
           >
             {screenCurtain ? (
@@ -916,7 +916,7 @@ export default function PrototypeWorkspace({
             ) : (
               <EyeOff className="w-3.5 h-3.5" aria-hidden="true" />
             )}
-            <span>{screenCurtain ? 'Matikan Layar Gelap' : 'Layar Gelap (Demo Tunanetra)'}</span>
+            <span>{screenCurtain ? 'Disable Screen Curtain' : 'Screen Curtain (Blind Demo)'}</span>
           </button>
         </div>
       </div>
@@ -925,9 +925,9 @@ export default function PrototypeWorkspace({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT COLUMN: Phone A — Bicara Seeker Mobile Simulator */}
         <div className="lg:col-span-5 flex flex-col items-center">
-          <div className="w-full max-w-[390px] bg-[#0B0D0E] border border-[#2A3038] rounded-[28px] overflow-hidden shadow-2xl shadow-black/60 flex flex-col h-[710px] relative">
+          <div className="w-full max-w-[390px] bg-[#0F0F0F] border border-white/15 rounded-[32px] overflow-hidden shadow-2xl shadow-black/70 flex flex-col h-[710px] relative">
             {/* Phone Status Strip */}
-            <div className="px-5 pt-3 pb-2 flex items-center justify-between gap-2 text-[11px] font-mono text-[#64748B] border-b border-[#181C21]">
+            <div className="px-5 pt-3 pb-2 flex items-center justify-between gap-2 text-[11px] font-mono text-[#71717A] border-b border-white/10">
               <span className="whitespace-nowrap">Seeker · MWA</span>
               <span className="whitespace-nowrap">
                 {voiceprintProfile.enrolled ? 'Eagle Ready' : 'Unenrolled'} · devnet
@@ -935,23 +935,23 @@ export default function PrototypeWorkspace({
             </div>
 
             {/* Phone Top Bar */}
-            <div className="px-4 py-2.5 flex items-center justify-between gap-2 border-b border-[#181C21]">
+            <div className="px-4 py-2.5 flex items-center justify-between gap-2 border-b border-white/10">
               <div className="flex items-center gap-2">
-                <span className="font-display text-base font-bold tracking-tight text-[#F8FAFC]">
+                <span className="font-display text-base font-bold tracking-tight text-[#F4F4F5]">
                   Bicara
                 </span>
-                <span className="text-[11px] font-mono text-[#64748B]">
+                <span className="text-[11px] font-mono text-[#71717A]">
                   {activeSpeaker === 'owner' ? 'User A' : 'Impostor B'}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={onToggleWallet}
-                aria-label={walletConnected ? 'Putuskan wallet Solana' : 'Hubungkan wallet Solana'}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono transition-colors cursor-pointer whitespace-nowrap ${
+                aria-label={walletConnected ? 'Disconnect Solana wallet' : 'Connect Solana wallet'}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-mono transition-colors cursor-pointer whitespace-nowrap ${
                   walletConnected
-                    ? 'bg-[#14171A] border border-[#262B30] text-[#E2E8F0] hover:border-[#3A414A]'
-                    : 'bg-[#22C55E] text-[#052E16] font-sans font-medium hover:bg-[#16A34A]'
+                    ? 'bg-[#1A1A1A] border border-white/15 text-[#F4F4F5] hover:border-[#CCFF00]/50'
+                    : 'bg-[#CCFF00] text-[#0F0F0F] font-sans font-bold hover:bg-[#B3E600]'
                 }`}
               >
                 <Wallet className="w-3.5 h-3.5" aria-hidden="true" />
@@ -968,10 +968,10 @@ export default function PrototypeWorkspace({
               <div
                 aria-live="polite"
                 data-testid="spoken-cue-bar"
-                className="px-3.5 py-2 bg-[#101418] border-b border-[#1D232A] space-y-1"
+                className="px-3.5 py-2 bg-[#161616] border-b border-white/10 space-y-1"
               >
                 <div className="flex items-center justify-between gap-2 text-[10px] font-mono">
-                  <span className="text-[#4ADE80] truncate">
+                  <span className="text-[#CCFF00] truncate">
                     {activeHapticInfo ? `Haptic: ${activeHapticInfo.label}` : 'Eyes-Free Audio Active'}
                   </span>
                   <div className="flex items-center gap-2 shrink-0">
@@ -1140,16 +1140,16 @@ export default function PrototypeWorkspace({
                         disabled={voiceStage === 'processing' || voiceStage === 'sending'}
                         aria-label={
                           voiceStage === 'recording'
-                            ? 'Berhenti merekam suara'
-                            : 'Mulai bicara perintah pembayaran atau navigasi'
+                            ? 'Stop recording voice'
+                            : 'Tap to speak payment or navigation command'
                         }
                         whileTap={{ scale: 0.96 }}
-                        className={`w-[104px] h-[104px] rounded-full flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4ADE80] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B0D0E] ${
+                        className={`w-[104px] h-[104px] rounded-full flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CCFF00] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0F0F0F] ${
                           voiceStage === 'recording'
                             ? 'bg-[#EF4444] text-white'
                             : voiceStage === 'processing' || voiceStage === 'sending'
-                              ? 'bg-[#1D2228] text-[#94A3B8] border border-[#2E353E]'
-                              : 'bg-[#22C55E] hover:bg-[#16A34A] text-[#052E16]'
+                              ? 'bg-[#1A1A1A] text-[#A1A1AA] border border-white/15'
+                              : 'bg-[#CCFF00] hover:bg-[#B3E600] text-[#0F0F0F] shadow-[0_0_24px_rgba(204,255,0,0.3)]'
                         }`}
                       >
                         {voiceStage === 'processing' || voiceStage === 'sending' ? (
@@ -1243,12 +1243,12 @@ export default function PrototypeWorkspace({
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-[#1E2329]">
                       <span className="text-[#94A3B8]">Jumlah</span>
-                      <span className="text-base font-bold font-mono tabular-nums text-[#22C55E]">
+                      <span className="text-base font-bold font-mono tabular-nums text-[#CCFF00]">
                         {pendingTransfer.intent.amount?.toFixed(2)}{' '}
                         {pendingTransfer.intent.currency ?? 'USDC'}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-[11px] text-[#64748B] font-mono tabular-nums">
+                    <div className="flex items-center justify-between text-[11px] text-[#71717A] font-mono tabular-nums">
                       <span>Raw 6-decimal units</span>
                       <span>
                         {usdcToRawUnits(pendingTransfer.intent.amount ?? 0).toString()}
@@ -1265,7 +1265,7 @@ export default function PrototypeWorkspace({
                         className="mt-0.5 accent-[#F59E0B]"
                       />
                       <span>
-                        {pendingTransfer.recipient.name} belum punya USDC ATA. Buat otomatis
+                        {pendingTransfer.recipient.name} has no USDC ATA yet. Auto-create
                         (idempotent, +0.002039 SOL rent).
                       </span>
                     </label>
@@ -1276,23 +1276,23 @@ export default function PrototypeWorkspace({
                       type="button"
                       onClick={handleCancelTransfer}
                       disabled={voiceStage === 'sending'}
-                      className="min-h-[44px] px-4 py-2 text-xs font-medium text-[#CBD5E1] bg-[#1C2127] hover:bg-[#252B33] rounded-xl transition-colors cursor-pointer"
+                      className="min-h-[44px] px-4 py-2 text-xs font-medium text-[#D4D4D8] bg-[#262626] hover:bg-[#303030] rounded-xl transition-colors cursor-pointer"
                     >
-                      Batal
+                      Cancel
                     </button>
                     <button
                       type="button"
                       onClick={() => void handleConfirmTransfer()}
                       disabled={voiceStage === 'sending'}
-                      className="min-h-[44px] px-4 py-2 text-xs font-semibold text-[#052E16] bg-[#22C55E] hover:bg-[#16A34A] rounded-xl transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5"
+                      className="min-h-[44px] px-4 py-2 text-xs font-bold text-[#0F0F0F] bg-[#CCFF00] hover:bg-[#B3E600] rounded-xl transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5"
                     >
                       {voiceStage === 'sending' ? (
                         <>
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Mengirim...</span>
+                          <span>Signing...</span>
                         </>
                       ) : (
-                        <span>Konfirmasi</span>
+                        <span>Confirm</span>
                       )}
                     </button>
                   </div>
@@ -1382,8 +1382,8 @@ export default function PrototypeWorkspace({
 
             {/* Bottom Tab Navigation (Home / Contacts / History — Spoken on Tap) */}
             <nav
-              aria-label="Navigasi Aplikasi Bicara"
-              className="grid grid-cols-3 border-t border-[#1E2329] bg-[#0F1215]"
+              aria-label="Bicara Mobile Navigation"
+              className="grid grid-cols-3 border-t border-white/10 bg-[#141414]"
             >
               {(
                 [
@@ -1399,8 +1399,8 @@ export default function PrototypeWorkspace({
                     type="button"
                     onClick={() => handleSelectPhoneTab(id)}
                     aria-current={active ? 'page' : undefined}
-                    className={`min-h-[54px] flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors cursor-pointer ${
-                      active ? 'text-[#22C55E]' : 'text-[#64748B] hover:text-[#CBD5E1]'
+                    className={`min-h-[54px] flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors cursor-pointer ${
+                      active ? 'text-[#CCFF00]' : 'text-[#71717A] hover:text-[#D4D4D8]'
                     }`}
                   >
                     <Icon className="w-4 h-4" aria-hidden="true" />
@@ -1422,10 +1422,10 @@ export default function PrototypeWorkspace({
                   setShowOnboarding(false);
                   setPhoneTab('home');
                   setStatusMessage(
-                    'Sidik suara User A (Azhar) aktif 100% dan terikat ke dompet Solana.'
+                    'Voiceprint for User A (Azhar) is active and bound to the Solana wallet.'
                   );
                   speakOut(
-                    'Onboarding selesai. Sidik suara kamu aktif 100 persen. Sentuh layar di mana saja untuk mulai bicara.',
+                    'Onboarding complete. Your voiceprint is active. Tap anywhere on screen to speak.',
                     'success'
                   );
                 }}
@@ -1438,35 +1438,36 @@ export default function PrototypeWorkspace({
         {/* RIGHT COLUMN: Voice Utterance Simulator, Phone B Mirror & Live Pipeline */}
         <div className="lg:col-span-7 space-y-5">
           {/* Quick Voice Scenarios + Custom Input */}
-          <div className="bg-[#14171A] border border-[#23282E] rounded-xl p-5 space-y-4">
+          <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl p-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h2 className="text-sm font-semibold text-[#F8FAFC]">
+                <h4 className="text-sm font-semibold text-[#F4F4F5]">
                   Eyes-Free Voice Command Simulator
-                </h2>
-                <p className="text-xs text-[#94A3B8]">
+                </h4>
+                <p className="text-xs text-[#A1A1AA]">
                   Test spoken navigation, balance queries, voice confirmation, and Voiceprint blocking
                 </p>
               </div>
-              <span className="text-xs font-mono text-[#64748B]">{metrics.engineLabel}</span>
+              <span className="text-xs font-mono text-[#71717A]">{metrics.engineLabel}</span>
             </div>
 
             <div className="flex flex-wrap gap-2">
               {DEMO_UTTERANCES.map((item) => {
-                const highlightConfirm = item.text === 'Ya' && Boolean(pendingTransfer);
+                const highlightConfirm =
+                  (item.text === 'Yes' || item.text === 'Ya') && Boolean(pendingTransfer);
                 return (
                   <button
                     key={item.text}
                     type="button"
                     onClick={() => void processTranscript(item.text)}
-                    className={`px-3 py-2 text-xs text-left rounded-lg border transition-colors cursor-pointer ${
+                    className={`px-3 py-2 text-xs text-left rounded-xl border transition-colors cursor-pointer ${
                       highlightConfirm
-                        ? 'bg-[#122618] border-[#22C55E] text-[#86EFAC]'
-                        : 'bg-[#0E1114] hover:bg-[#191E24] border-[#242A31] hover:border-[#22C55E]/50'
+                        ? 'bg-[#CCFF00]/15 border-[#CCFF00] text-[#CCFF00]'
+                        : 'bg-[#111111] hover:bg-white/5 border-white/10 hover:border-[#CCFF00]/50'
                     }`}
                   >
-                    <span className="block text-[10px] text-[#64748B]">{item.label}</span>
-                    <span className={highlightConfirm ? 'text-[#86EFAC] font-semibold' : 'text-[#E2E8F0]'}>
+                    <span className="block text-[10px] text-[#71717A]">{item.label}</span>
+                    <span className={highlightConfirm ? 'text-[#CCFF00] font-semibold' : 'text-[#F4F4F5]'}>
                       &ldquo;{item.text}&rdquo;
                     </span>
                   </button>
@@ -1476,42 +1477,42 @@ export default function PrototypeWorkspace({
 
             <form onSubmit={handleCustomSubmit} className="flex items-center gap-2">
               <label htmlFor="custom-voice-input" className="sr-only">
-                Ketik simulasi suara
+                Type simulated voice command
               </label>
               <input
                 id="custom-voice-input"
                 type="text"
                 value={customCommand}
                 onChange={(e) => setCustomCommand(e.target.value)}
-                placeholder='Coba: "buka kontak", "cek saldo", "kembali ke beranda", atau "kirim 2.5 dolar ke Siti"'
-                className="flex-1 px-3.5 py-2.5 text-xs bg-[#0B0D0E] border border-[#262B30] rounded-lg text-[#F8FAFC] placeholder:text-[#64748B] focus:outline-none focus:border-[#22C55E]"
+                placeholder='Try: "Check balance", "Open contacts", or "Send 5 USDC to Ahmad"'
+                className="flex-1 px-3.5 py-2.5 text-xs bg-[#0F0F0F] border border-white/10 rounded-xl text-[#F4F4F5] placeholder:text-[#71717A] focus:outline-none focus:border-[#CCFF00]"
               />
               <button
                 type="submit"
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium text-[#052E16] bg-[#22C55E] hover:bg-[#16A34A] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-[#0F0F0F] bg-[#CCFF00] hover:bg-[#B3E600] rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Simulasikan</span>
+                <span>Simulate</span>
               </button>
             </form>
           </div>
 
           {/* Two-Phone Demo Mirror (Phone B — Recipient Wallet) */}
-          <div className="bg-[#14171A] border border-[#23282E] rounded-xl p-5 space-y-3">
+          <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl p-5 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Smartphone className="w-4 h-4 text-[#22C55E]" aria-hidden="true" />
-                <h2 className="text-sm font-semibold text-[#F8FAFC]">
+                <Smartphone className="w-4 h-4 text-[#CCFF00]" aria-hidden="true" />
+                <h4 className="text-sm font-semibold text-[#F4F4F5]">
                   Phone B: Recipient Wallet Mirror (Two-Phone Demo View)
-                </h2>
+                </h4>
               </div>
-              <label className="inline-flex items-center gap-2 text-xs text-[#94A3B8]">
+              <label className="inline-flex items-center gap-2 text-xs text-[#A1A1AA]">
                 <span>Monitor:</span>
                 <select
-                  aria-label="Pilih wallet penerima untuk Phone B"
+                  aria-label="Select recipient wallet for Phone B"
                   value={mirrorContact?.id ?? ''}
                   onChange={(e) => setMirrorContactId(e.target.value)}
-                  className="bg-[#0B0D0E] border border-[#262B30] rounded-md px-2.5 py-1 text-xs text-[#F8FAFC] focus:outline-none focus:border-[#22C55E]"
+                  className="bg-[#0F0F0F] border border-white/10 rounded-lg px-2.5 py-1 text-xs text-[#F4F4F5] focus:outline-none focus:border-[#CCFF00]"
                 >
                   {contacts.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -1524,35 +1525,35 @@ export default function PrototypeWorkspace({
 
             {mirrorContact && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-                <div className="p-3 bg-[#0E1114] border border-[#22272D] rounded-lg">
-                  <div className="text-[11px] text-[#64748B]">Recipient</div>
-                  <div className="mt-0.5 text-sm font-semibold text-[#F8FAFC]">
+                <div className="p-3 bg-[#111111] border border-white/10 rounded-xl">
+                  <div className="text-[11px] text-[#71717A]">Recipient</div>
+                  <div className="mt-0.5 text-sm font-semibold text-[#F4F4F5]">
                     {mirrorContact.name}
                   </div>
-                  <div className="font-mono text-[11px] text-[#94A3B8]">
+                  <div className="font-mono text-[11px] text-[#A1A1AA]">
                     {truncateWallet(mirrorContact.wallet, 5, 4)}
                   </div>
                 </div>
-                <div className="p-3 bg-[#0E1114] border border-[#22272D] rounded-lg">
-                  <div className="text-[11px] text-[#64748B]">Devnet USDC Balance</div>
+                <div className="p-3 bg-[#111111] border border-white/10 rounded-xl">
+                  <div className="text-[11px] text-[#71717A]">Devnet USDC Balance</div>
                   <div
                     data-testid="recipient-balance"
-                    className="mt-0.5 text-lg font-bold font-mono tabular-nums text-[#F8FAFC]"
+                    className="mt-0.5 text-lg font-bold font-mono tabular-nums text-[#F4F4F5]"
                   >
                     {mirrorContact.balanceUsdc.toFixed(2)} USDC
                   </div>
                   {lastDeltaContactId === mirrorContact.id && lastDeltaAmount > 0 && (
-                    <div className="text-[11px] font-mono tabular-nums text-[#22C55E]">
+                    <div className="text-[11px] font-mono tabular-nums text-[#CCFF00]">
                       +{lastDeltaAmount.toFixed(2)} USDC received
                     </div>
                   )}
                 </div>
-                <div className="p-3 bg-[#0E1114] border border-[#22272D] rounded-lg">
-                  <div className="text-[11px] text-[#64748B]">On-Chain Status</div>
-                  <div className="mt-0.5 text-xs font-medium text-[#E2E8F0]">
+                <div className="p-3 bg-[#111111] border border-white/10 rounded-xl">
+                  <div className="text-[11px] text-[#71717A]">On-Chain Status</div>
+                  <div className="mt-0.5 text-xs font-medium text-[#E4E4E7]">
                     {mirrorContact.onChain ? 'Registered in ContactRegistry' : 'Supabase Only'}
                   </div>
-                  <div className="font-mono text-[11px] text-[#64748B]">
+                  <div className="font-mono text-[11px] text-[#71717A]">
                     {mirrorContact.hasUsdcAta ? 'USDC ATA Ready' : 'ATA Init Needed'}
                   </div>
                 </div>
@@ -1561,22 +1562,22 @@ export default function PrototypeWorkspace({
           </div>
 
           {/* Live Architecture Pipeline Inspector */}
-          <div className="bg-[#14171A] border border-[#23282E] rounded-xl p-5 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#1E2329]">
+          <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10">
               <div>
-                <h2 className="text-sm font-semibold text-[#F8FAFC]">
+                <h4 className="text-sm font-semibold text-[#F4F4F5]">
                   Live Pipeline &amp; Payload Inspector
-                </h2>
-                <p className="text-xs text-[#94A3B8]">
+                </h4>
+                <p className="text-xs text-[#A1A1AA]">
                   Stage 00 Voiceprint Gate → STT → Unified NLU → Contact PDA → MWA Seed Vault
                 </p>
               </div>
               <div className="text-right font-mono text-xs tabular-nums">
-                <span className="text-[#64748B]">Est. E2E: </span>
-                <span className="text-[#22C55E] font-semibold">
+                <span className="text-[#71717A]">Est. E2E: </span>
+                <span className="text-[#CCFF00] font-semibold">
                   {totalLatencyMs > 0 ? `${(totalLatencyMs / 1000).toFixed(2)}s` : '—'}
                 </span>
-                <span className="text-[#64748B]"> / 7.0s budget</span>
+                <span className="text-[#71717A]"> / 7.0s budget</span>
               </div>
             </div>
 
@@ -1585,30 +1586,30 @@ export default function PrototypeWorkspace({
                 <div
                   key={step.num}
                   data-testid={`pipeline-step-${step.num}`}
-                  className={`p-3 rounded-lg border transition-colors ${
+                  className={`p-3 rounded-xl border transition-colors ${
                     step.blocked
                       ? 'bg-[#211214] border-[#EF4444]/60'
                       : step.active
-                        ? 'bg-[#17231B] border-[#22C55E]/60'
+                        ? 'bg-[#CCFF00]/10 border-[#CCFF00]/60'
                         : step.done
-                          ? 'bg-[#0E1114] border-[#22C55E]/30'
-                          : 'bg-[#0E1114] border-[#1F242B]'
+                          ? 'bg-[#111111] border-[#CCFF00]/30'
+                          : 'bg-[#111111] border-white/10'
                   }`}
                 >
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-[#F8FAFC]">
-                      <span className="font-mono text-[#64748B] mr-1.5">{step.num}.</span>
+                    <span className="font-medium text-[#F4F4F5]">
+                      <span className="font-mono text-[#71717A] mr-1.5">{step.num}.</span>
                       {step.title}
                     </span>
                     {step.blocked ? (
                       <ShieldAlert className="w-3.5 h-3.5 text-[#EF4444] shrink-0" aria-hidden="true" />
                     ) : step.done ? (
-                      <ShieldCheck className="w-3.5 h-3.5 text-[#22C55E] shrink-0" aria-hidden="true" />
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#CCFF00] shrink-0" aria-hidden="true" />
                     ) : null}
                   </div>
                   <p
                     className={`mt-1 text-[11px] font-mono truncate ${
-                      step.blocked ? 'text-[#FCA5A5]' : 'text-[#94A3B8]'
+                      step.blocked ? 'text-[#FCA5A5]' : 'text-[#A1A1AA]'
                     }`}
                   >
                     {step.detail}
@@ -1620,10 +1621,10 @@ export default function PrototypeWorkspace({
             {/* Structured Payloads Side-by-Side */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
               <div className="space-y-1.5">
-                <div className="text-[11px] font-medium text-[#94A3B8]">
+                <div className="text-[11px] font-medium text-[#A1A1AA]">
                   Parsed Unified Intent JSON
                 </div>
-                <pre className="bg-[#0B0D0E] border border-[#22272D] rounded-lg p-3 text-[11px] font-mono text-[#86EFAC] overflow-x-auto min-h-[132px]">
+                <pre className="bg-[#0F0F0F] border border-white/10 rounded-xl p-3 text-[11px] font-mono text-[#CCFF00] overflow-x-auto min-h-[132px]">
                   <code>
                     {parsedIntent
                       ? JSON.stringify(parsedIntent, null, 2)
@@ -1633,10 +1634,10 @@ export default function PrototypeWorkspace({
               </div>
 
               <div className="space-y-1.5">
-                <div className="text-[11px] font-medium text-[#94A3B8]">
+                <div className="text-[11px] font-medium text-[#A1A1AA]">
                   Voiceprint Gate, Haptics &amp; Solana Instruction
                 </div>
-                <pre className="bg-[#0B0D0E] border border-[#22272D] rounded-lg p-3 text-[11px] font-mono text-[#E2E8F0] overflow-x-auto min-h-[132px]">
+                <pre className="bg-[#0F0F0F] border border-white/10 rounded-xl p-3 text-[11px] font-mono text-[#E4E4E7] overflow-x-auto min-h-[132px]">
                   <code>
                     {lastInstruction
                       ? JSON.stringify(

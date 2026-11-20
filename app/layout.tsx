@@ -1,18 +1,18 @@
 import type { Metadata } from 'next';
-import { Plus_Jakarta_Sans, DM_Sans, JetBrains_Mono } from 'next/font/google';
+import { Bricolage_Grotesque, Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 
-const plusJakartaSans = Plus_Jakarta_Sans({
+const bricolageGrotesque = Bricolage_Grotesque({
   subsets: ['latin'],
-  weight: ['500', '600', '700'],
-  variable: '--font-jakarta',
+  weight: ['600', '700', '800'],
+  variable: '--font-bricolage',
   display: 'swap',
 });
 
-const dmSans = DM_Sans({
+const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
-  variable: '--font-dm-sans',
+  variable: '--font-jakarta',
   display: 'swap',
 });
 
@@ -24,20 +24,20 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Bicara — Voice USDC Prototype & Architecture Studio',
+  title: 'Bicara — Spoken Transaction Verification for Solana',
   description:
-    'Interactive Solana Mobile voice-to-USDC payment prototype, 2026 SDK migration workbench, and hackathon documentation suite for Bicara.',
+    'Before you sign anything on Solana, Bicara reads exactly what will happen — out loud. Built blind-first: proven to work with zero screen, so it works for everyone.',
   openGraph: {
-    title: 'Bicara — Voice USDC Prototype & Architecture Studio',
+    title: 'Bicara — Spoken Transaction Verification for Solana',
     description:
-      'Interactive Solana Mobile voice-to-USDC payment prototype, 2026 SDK migration workbench, and hackathon documentation suite for Bicara.',
+      'Before you sign anything on Solana, Bicara reads exactly what will happen — out loud. Built blind-first: proven to work with zero screen, so it works for everyone.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Bicara — Voice USDC Prototype & Architecture Studio',
+    title: 'Bicara — Spoken Transaction Verification for Solana',
     description:
-      'Interactive Solana Mobile voice-to-USDC payment prototype, 2026 SDK migration workbench, and hackathon documentation suite for Bicara.',
+      'Before you sign anything on Solana, Bicara reads exactly what will happen — out loud. Built blind-first: proven to work with zero screen, so it works for everyone.',
   },
 };
 
@@ -49,9 +49,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${plusJakartaSans.variable} ${dmSans.variable} ${jetbrainsMono.variable}`}
+      className={`${bricolageGrotesque.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable}`}
     >
-      <body suppressHydrationWarning className="min-h-screen bg-[#0B0D0E] text-[#F8FAFC]">
+      <body suppressHydrationWarning className="min-h-screen bg-[#0F0F0F] text-[#F4F4F5]">
         {children}
       </body>
     </html>
