@@ -26,7 +26,7 @@ export async function speakEyesFree(
   }
 
   try {
-    Speech.stop();
+    await Speech.stop();
     Speech.speak(cleaned, {
       language: 'id-ID',
       rate: 0.96,

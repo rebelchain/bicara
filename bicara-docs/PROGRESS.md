@@ -59,10 +59,10 @@ Next step:   Run Gate A on Azhar's physical Android 16 phone over USB (`git pull
 
 | Check | Status | Measured Value / Notes |
 |-------|--------|------------------------|
-| Dev build boots on Android 16 USB (`mobile/polyfill.js` clean) | `[ ] Pending` | — |
-| `/api/health` returns `200 OK` on phone via `adb reverse` | `[ ] Pending` | — |
-| MWA authorize on `solana:devnet` (Phantom / Solflare) | `[ ] Pending` | — |
-| Wallet approval screen eyes-free test (TalkBack / biometric-only) | `[ ] Pending` | — |
+| Dev build boots on Android 16 USB (`mobile/polyfill.js` clean) | `[x] PASS` | OPPO CPH2631 (Android 16) booted cleanly with zero crypto/polyfill crash (`quick-base64@2.2.2`, `quick-crypto@1.1.2`, `nitro@0.35.0`); `expo-audio` `.m4a` capture + 5 physical `expo-haptics` patterns verified. Fixed Android TTS repeat-tab silence (`await Speech.stop()` + mic focus release). |
+| `/api/health` returns `200 OK` on phone via `adb reverse` | `[ ] Retrying` | Hit `NETWORK REQUEST FAILED` on first tap — verifying root Next.js `npm run dev` on port 3000 + `adb reverse tcp:3000 tcp:3000`. |
+| MWA authorize on `solana:devnet` (Phantom / Solflare) | `[x] PASS (Launch)` | Tapping Connect MWA launched Solflare on Android 16. Verify truncated address display after approving connection. |
+| Wallet approval screen eyes-free test (TalkBack / biometric-only) | `[x] MEASURED` | **Key finding**: Solflare approval screen showed no fingerprint/biometric prompt on connect and required looking at the screen to tap Approve. **Demo implication**: Scope Screen Curtain to Bicara's own screens and disclose external wallet popup accessibility limits honestly to judges. |
 | Picovoice Eagle genuine vs. impostor scores & chosen threshold | `[ ] Pending` | — |
 | `scribe_v2` English + dynamic `keyterms` accuracy | `[ ] Pending` | — |
 | `eleven_flash_v2_5` on-device TTS latency (ms) | `[ ] Pending` | — |

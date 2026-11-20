@@ -57,6 +57,10 @@ export function useVoiceRecorder(): VoiceRecorderState {
     try {
       await recorder.stop();
       setIsRecording(false);
+      await setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
+      });
       await triggerHaptic('tick');
       const uri = recorder.uri ?? null;
       setLastRecordingUri(uri);
