@@ -1,9 +1,10 @@
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { EN_UI_COPY } from '../../src/i18n/en';
 
 export default function ContactsStep1Screen() {
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.container}>
         <Text style={styles.kicker}>{EN_UI_COPY.contacts.kicker}</Text>
         <Text style={styles.title}>{EN_UI_COPY.contacts.title}</Text>

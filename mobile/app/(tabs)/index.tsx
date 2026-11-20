@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import {
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useMobileWallet } from '@wallet-ui/react-native-kit';
 import { useVoiceRecorder } from '../../src/hooks/useVoiceRecorder';
@@ -260,7 +260,7 @@ export default function EyesFreeHomeScreen() {
   const walletAddress = account?.address?.toString() ?? null;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Compact Top Header */}
       <View style={styles.header}>
         <View>

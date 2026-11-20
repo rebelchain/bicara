@@ -1,3 +1,4 @@
+import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { EN_UI_COPY, EN_VOICE_SCRIPTS } from '../../src/i18n/en';
 import { speakEyesFree } from '../../src/services/speech';
@@ -10,14 +11,24 @@ export default function SpokenTabsLayout() {
         tabBarStyle: {
           backgroundColor: '#0F1215',
           borderTopColor: '#1E2329',
-          height: 64,
-          paddingBottom: 8,
-          paddingTop: 6,
+          height: 68,
+          paddingBottom: 10,
+          paddingTop: 8,
         },
         tabBarActiveTintColor: '#22C55E',
         tabBarInactiveTintColor: '#64748B',
+        tabBarIcon: ({ focused, color }) => (
+          <View
+            style={{
+              width: focused ? 24 : 8,
+              height: 4,
+              borderRadius: 999,
+              backgroundColor: color,
+            }}
+          />
+        ),
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: '600',
         },
       }}

@@ -105,75 +105,127 @@ export async function POST(req: NextRequest) {
         ? `\nKnown user contacts (spelling hints only): ${body.contactNames.join(', ')}`
         : '';
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-4-hydrogen',
-      contents: `Spoken transcript: "${transcript}"${contactHint}`,
-      config: {
-        systemInstruction: INTENT_SYSTEM_INSTRUCTION,
-        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            action: {
-              type: Type.STRING,
-              enum: [
-                'send',
-                'swap_quote',
-                'check_price',
-                'navigate',
-                'check_balance',
-                'list_contacts',
-                'read_history',
-                'confirm',
-                'cancel',
-                'repeat',
-                'help',
-                'unknown',
-              ],
-            },
-            targetTab: {
-              type: Type.STRING,
-              enum: ['home', 'contacts', 'history'],
-              nullable: true,
-            },
-            amount: {
-              type: Type.NUMBER,
-              nullable: true,
-            },
-            currency: {
-              type: Type.STRING,
-              nullable: true,
-            },
-            swapDirection: {
-              type: Type.STRING,
-              enum: ['buy', 'sell'],
-              nullable: true,
-            },
-            outputCurrency: {
-              type: Type.STRING,
-              nullable: true,
-            },
-            recipient: {
-              type: Type.STRING,
-              nullable: true,
-            },
-            confidence: {
-              type: Type.STRING,
-              enum: ['high', 'low'],
-            },
-            raw_amount_text: {
-              type: Type.STRING,
-              nullable: true,
-            },
-          },
-          required: ['action', 'confidence'],
+    const intentResponseSchema = {
+      type: Type.OBJECT,
+      properties: {
+        action: {
+          type: Type.STRING,
+          enum: [
+            'send',
+            'swap_quote',
+            'check_price',
+            'navigate',
+            'check_balance',
+            'list_contacts',
+            'read_history',
+            'confirm',
+            'cancel',
+            'repeat',
+            'help',
+            'unknown',
+          ],
+        },
+        targetTab: {
+          type: Type.STRING,
+          enum: ['home', 'contacts', 'history'],
+          nullable: true,
+        },
+        amount: {
+          type: Type.NUMBER,
+          nullable: true,
+        },
+        currency: {
+          type: Type.STRING,
+          nullable: true,
+        },
+        swapDirection: {
+          type: Type.STRING,
+          enum: ['buy', 'sell'],
+          nullable: true,
+        },
+        outputCurrency: {
+          type: Type.STRING,
+          nullable: true,
+        },
+        recipient: {
+          type: Type.STRING,
+          nullable: true,
+        },
+        confidence: {
+          type: Type.STRING,
+          enum: ['high', 'low'],
+        },
+        raw_amount_text: {
+          type: Type.STRING,
+          nullable: true,
         },
       },
-    });
+      required: ['action', 'confidence'],
+    };
 
-    const rawText = (response.text ?? '').trim();
-    const parsed = JSON.parse(rawText) as Partial<PaymentIntent>;
+    const isTransientOverload = (error: unknown): boolean => {
+      const msg = error instanceof Error ? error.message : String(error);
+      return (
+        msg.includes('503') ||
+        msg.includes('UNAVAILABLE') ||
+        msg.toLowerCase().includes('high demand') ||
+        msg.toLowerCase().includes('overloaded')
+      );
+    };
+
+    const callOfficialGemini = async (
+      model: 'gemini-4-hydrogen' | 'gemini-3.1-flash-lite',
+      thinkingLevel: ThinkingLevel
+    ) => {
+      return ai.models.generateContent({
+        model,
+        contents: `Spoken transcript: "${transcript}"${contactHint}`,
+        config: {
+          systemInstruction: INTENT_SYSTEM_INSTRUCTION,
+          thinkingConfig: { thinkingLevel },
+          responseMimeType: 'application/json',
+          responseSchema: intentResponseSchema,
+        },
+      });
+    };
+
+    // Official Gemini attempts: fast low-latency gemini-3.1-flash-lite primary -> official failover gemini-4-hydrogen
+    const attempts: Array<{
+      model: 'gemini-3.1-flash-lite' | 'gemini-4-hydrogen';
+      thinkingLevel: ThinkingLevel;
+      delayMs: number;
+    }> = [
+      { model: 'gemini-3.1-flash-lite', thinkingLevel: ThinkingLevel.MINIMAL, delayMs: 0 },
+      { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, delayMs: 200 },
+    ];
+
+    let responseText = '';
+    let usedModel: 'gemini-3.1-flash-lite' | 'gemini-4-hydrogen' = 'gemini-3.1-flash-lite';
+    let lastErr: unknown = null;
+
+    for (const attempt of attempts) {
+      if (attempt.delayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, attempt.delayMs));
+      }
+      try {
+        const res = await callOfficialGemini(attempt.model, attempt.thinkingLevel);
+        responseText = (res.text ?? '').trim();
+        usedModel = attempt.model;
+        lastErr = null;
+        break;
+      } catch (err) {
+        lastErr = err;
+        if (!isTransientOverload(err)) {
+          throw err;
+        }
+      }
+    }
+
+    if (lastErr) {
+      throw lastErr;
+    }
+
+    const parsed = JSON.parse(responseText) as Partial<PaymentIntent>;
     const action: VoiceAction =
       parsed.action && VALID_ACTIONS.has(parsed.action) ? parsed.action : 'unknown';
 
@@ -227,12 +279,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       intent,
-      engine: 'gemini-4-hydrogen',
+      engine: usedModel,
       latencyMs: Date.now() - startedAt,
     });
   } catch (err) {
     const message =
       err instanceof Error ? err.message : 'Failed to parse voice intent';
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message.includes('503') ? 503 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }
