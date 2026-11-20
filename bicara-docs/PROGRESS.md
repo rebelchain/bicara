@@ -19,26 +19,36 @@
 
 ```
 Date:        2026-11-20
-What worked: Completed the full Bicara documentation pivot (docs + web Docs viewer registration):
-             - Rewrote all 7 core specs (CLAUDE, PROJECT, ARCHITECTURE, MOBILE_SPEC,
-               VOICE_SPEC, PROGRAM_SPEC, PROGRESS) to the global English accessibility layer
-               positioning (`accessible-signing`), five-layer security model ("Voice Identifies,
-               Hardware Authorizes"), TxSummary spoken narration, and verified Quote-Only Swap
-               (USDC <-> SOL via Jupiter Swap API V2) + price/portfolio readout.
-             - Added 3 new dedicated specs: docs/SECURITY_MODEL.md, docs/RED_TEAM_DEMO.md,
-               docs/HACKATHON_COMPLIANCE.md (MIT License).
-             - Reconciled codebase discrepancies (mobile/polyfill.js, Next.js app/api/* with
-               Gemini 4 Hydrogen & GEMINI_API_KEY, Seeker-only Seed Vault rule, verified WHO
-               2.2B figure, verified scribe_v2 keyterms limits, Jupiter Swap V2 mainnet-only
-               & signTransactions vs signAndSendTransactions distinction).
-             - Previously fixed /mobile npm ERESOLVE conflict (@solana/kit@^8.6.0,
-               @wallet-ui/react-native-kit@^4.4.1, @solana-program/token@^0.18.0,
-               react-native-quick-crypto@^1.1.10 + metro.config.js) and verified tsc + expo config.
-Stopped at:  Docs pivoted and ready. Runtime mobile/web/API code has NOT yet been migrated
-             from pre-pivot Indonesian strings to the English locale dictionary or Quote-Only
-             Jupiter endpoints (tracked explicitly below).
-Next step:   Run Gate A on Azhar's physical Android 16 phone over USB (`git pull`, `npm install`,
-             `adb reverse`, `npx expo run:android`) and log real hardware measurements below.
+What worked: Completed Narrative Reframe (Part 1) + full Code-Sync Backlog (Part 2A–2E),
+             building on the verified Gate A.1 physical Android 16 PASS on OPPO CPH2631:
+             - Part 1 (Docs): Reframed PROJECT.md and CLAUDE.md around universal anti-blind-signing
+               verification (Chainalysis 2022 $516.8M approval phishing citation), positioning
+               blind/low-vision users as the extreme proof case while preserving all existing
+               evidence and validation accounting.
+             - Part 2A (/app/api/stt): Switched default language_code to 'eng' and enforced
+               verified scribe_v2 batch limits (up to 1,000 keyterms, <= 50 chars, <= 5 words).
+             - Part 2B (/app/api/intent + /lib/bicara-engine.ts): Synced to English-first NLU,
+               added swap_quote & check_price actions, removed hardcoded "94%" voiceprint score,
+               and added TxSummary interface & skeleton formatter.
+             - Part 2C (New Server Routes + .env.example): Added Quote-Only /api/swap/quote
+               (verified Jupiter /swap/v2/order without taker + strict USDC<->SOL allowlist
+               blocking unknown tokens with HTTP 403) and /api/prices (Jupiter Price V3 primary
+               with CoinGecko fallback returning { solUsd, usdcUsd: 1.00 }), plus JUPITER_API_KEY
+               placeholder in .env.example.
+             - Part 2D (/mobile): Created mobile/src/i18n/en.ts (EN_VOICE_SCRIPTS verbatim from
+               VOICE_SPEC.md) and migrated all mobile screens, speech (en-US), STT client (eng),
+               and recorder error copy to English (JS-only; no APK rebuild needed).
+             - Part 2E (Web Workbench): Synced Prototype, Architecture, Build Kit, and Sprint tab
+               headings to the global English accessible-signing narrative.
+Stopped at:  All 5 Code-Sync Backlog items completed and verified; Gate A.1 hardware checks
+             (APK boot, /api/health via adb reverse, MWA Solflare Devnet, haptics, repeated
+             spoken tabs) already PASS on OPPO CPH2631 Android 16.
+Next step:   Run Gate A.2 on Azhar's physical OPPO CPH2631 Android 16 phone over USB:
+             1) git pull and reload Metro (`r`) to verify English mobile TTS/copy on-device.
+             2) Measure and log remaining Gate A rows: Picovoice Eagle genuine vs. impostor
+                scores, scribe_v2 English + dynamic keyterms accuracy, eleven_flash_v2_5
+                on-device TTS latency (ms), and live Jupiter Swap V2 Quote-Only (/api/swap/quote)
+                plus /api/prices.
 ```
 
 ---
@@ -59,9 +69,9 @@ Next step:   Run Gate A on Azhar's physical Android 16 phone over USB (`git pull
 
 | Check | Status | Measured Value / Notes |
 |-------|--------|------------------------|
-| Dev build boots on Android 16 USB (`mobile/polyfill.js` clean) | `[x] PASS` | OPPO CPH2631 (Android 16) booted cleanly with zero crypto/polyfill crash (`quick-base64@2.2.2`, `quick-crypto@1.1.2`, `nitro@0.35.0`); `expo-audio` `.m4a` capture + 5 physical `expo-haptics` patterns verified. Fixed Android TTS repeat-tab silence (`await Speech.stop()` + mic focus release). |
-| `/api/health` returns `200 OK` on phone via `adb reverse` | `[ ] Retrying` | Hit `NETWORK REQUEST FAILED` on first tap — verifying root Next.js `npm run dev` on port 3000 + `adb reverse tcp:3000 tcp:3000`. |
-| MWA authorize on `solana:devnet` (Phantom / Solflare) | `[x] PASS (Launch)` | Tapping Connect MWA launched Solflare on Android 16. Verify truncated address display after approving connection. |
+| Dev build boots on Android 16 USB (`mobile/polyfill.js` clean) | `[x] PASS` | OPPO CPH2631 (Android 16) booted cleanly with zero crypto/polyfill crash (`quick-base64@2.2.2`, `quick-crypto@1.1.2`, `nitro@0.35.0`, `expo-asset`); `expo-audio` `.m4a` capture + 5 physical `expo-haptics` patterns + repeated Spoken Bottom Tabs (`await Speech.stop()` fix) all verified on hardware. |
+| `/api/health` returns `200 OK` on phone via `adb reverse` | `[x] PASS` | Green `Connected` verified on OPPO CPH2631 over USB (`adb reverse tcp:3000 tcp:3000` -> root Next.js `npm run dev`). |
+| MWA authorize on `solana:devnet` (Phantom / Solflare) | `[x] PASS` | Tapping Connect MWA launched Solflare on Android 16; approving returned and displayed truncated wallet address in top-right button. |
 | Wallet approval screen eyes-free test (TalkBack / biometric-only) | `[x] MEASURED` | **Key finding**: Solflare approval screen showed no fingerprint/biometric prompt on connect and required looking at the screen to tap Approve. **Demo implication**: Scope Screen Curtain to Bicara's own screens and disclose external wallet popup accessibility limits honestly to judges. |
 | Picovoice Eagle genuine vs. impostor scores & chosen threshold | `[ ] Pending` | — |
 | `scribe_v2` English + dynamic `keyterms` accuracy | `[ ] Pending` | — |
@@ -70,14 +80,14 @@ Next step:   Run Gate A on Azhar's physical Android 16 phone over USB (`git pull
 
 ---
 
-## Code-Sync Backlog (Required After This Docs-Only Pivot)
+## Code-Sync Completed (2026-11-20)
 
-Because the 20 Nov pivot was executed as **docs + web Docs tab registration only**, these runtime files still reflect pre-pivot Indonesian copy/defaults and must be updated step-by-step in upcoming code turns:
-- [ ] Switch `/app/api/stt/route.ts` default `language_code` from `'ind'` to `'eng'` and raise keyterm slice ceiling to match verified `scribe_v2` batch limits (up to 1,000, max 50 chars / 5 words).
-- [ ] Switch `/app/api/intent/route.ts` and `/lib/bicara-engine.ts` to English-first prompts, add `swap_quote` and `check_price` actions, remove fixed `"94%"` score logic, and implement `TxSummary`.
-- [ ] Add Next.js server routes `/api/swap/quote` (Jupiter Swap API V2, Quote-Only, server-side `JUPITER_API_KEY`) and `/api/prices`, plus declare `JUPITER_API_KEY` in `/.env.example`.
-- [ ] Migrate `/mobile` screens and speech/onboarding copy to an English locale dictionary (`mobile/src/i18n/en.ts`).
-- [ ] Update web workbench tabs (`Prototype`, `Architecture`, `Build Kit`, `Sprint`) to match the pivoted global English narrative and `accessible-signing` architecture.
+All 5 post-pivot code-sync backlog items are now synced to the global English narrative and `accessible-signing` architecture:
+- [x] **2A (`/app/api/stt/route.ts`)**: Switched default `language_code` to `'eng'` and enforced verified ElevenLabs `scribe_v2` batch keyterm constraints (up to 1,000 deduplicated terms, max 50 chars and max 5 words each).
+- [x] **2B (`/app/api/intent/route.ts` + `/lib/bicara-engine.ts`)**: Switched NLU prompts & fallback engine to English-first, added `swap_quote` and `check_price` actions, removed hardcoded `"94%"` voiceprint score logic, and added `TxSummary` interface & skeleton formatter.
+- [x] **2C (`/app/api/swap/quote/route.ts` + `/app/api/prices/route.ts` + `/.env.example`)**: Added Quote-Only Jupiter Swap V2 route (`GET https://api.jup.ag/swap/v2/order` without `taker`, server-only `JUPITER_API_KEY`, strict `USDC ↔ SOL` allowlist returning `HTTP 403` for unverified tokens), SOL/USD price route (Jupiter Price V3 primary + CoinGecko fallback returning `{ solUsd, usdcUsd: 1.00 }`), and `JUPITER_API_KEY` placeholder in `/.env.example`.
+- [x] **2D (`/mobile/src/i18n/en.ts` + `/mobile` screens/services)**: Added typed `EN_VOICE_SCRIPTS` dictionary verbatim from `VOICE_SPEC.md` and replaced hardcoded Indonesian mobile UI/speech/STT strings with English (`en-US` TTS, `'eng'` STT).
+- [x] **2E (Web Workbench Tabs)**: Updated heading copy across `Prototype`, `Architecture`, `Build Kit`, and `Sprint` tabs (and removed `"94%"` display labels) to match the pivoted global English `accessible-signing` narrative.
 
 ---
 

@@ -1,4 +1,5 @@
 import { Tabs } from 'expo-router';
+import { EN_UI_COPY, EN_VOICE_SCRIPTS } from '../../src/i18n/en';
 import { speakEyesFree } from '../../src/services/speech';
 
 export default function SpokenTabsLayout() {
@@ -23,37 +24,37 @@ export default function SpokenTabsLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{ title: 'Home', tabBarAccessibilityLabel: 'Tab Beranda Suara' }}
+        options={{
+          title: EN_UI_COPY.tabs.homeTitle,
+          tabBarAccessibilityLabel: EN_UI_COPY.tabs.homeA11y,
+        }}
         listeners={{
           tabPress: () => {
-            void speakEyesFree(
-              'Halaman Beranda. Sentuh layar di mana saja lalu bicara.',
-              'tick'
-            );
+            void speakEyesFree(EN_VOICE_SCRIPTS.navHome(0, 0), 'tick');
           },
         }}
       />
       <Tabs.Screen
         name="contacts"
-        options={{ title: 'Contacts', tabBarAccessibilityLabel: 'Tab Daftar Kontak' }}
+        options={{
+          title: EN_UI_COPY.tabs.contactsTitle,
+          tabBarAccessibilityLabel: EN_UI_COPY.tabs.contactsA11y,
+        }}
         listeners={{
           tabPress: () => {
-            void speakEyesFree(
-              'Halaman Kontak. Daftar kontak penerima USDC kamu.',
-              'tick'
-            );
+            void speakEyesFree(EN_VOICE_SCRIPTS.navContacts(0, []), 'tick');
           },
         }}
       />
       <Tabs.Screen
         name="history"
-        options={{ title: 'History', tabBarAccessibilityLabel: 'Tab Riwayat Transaksi' }}
+        options={{
+          title: EN_UI_COPY.tabs.historyTitle,
+          tabBarAccessibilityLabel: EN_UI_COPY.tabs.historyA11y,
+        }}
         listeners={{
           tabPress: () => {
-            void speakEyesFree(
-              'Halaman Riwayat. Daftar transaksi USDC terakhir kamu.',
-              'tick'
-            );
+            void speakEyesFree(EN_VOICE_SCRIPTS.navHistory(0, null), 'tick');
           },
         }}
       />

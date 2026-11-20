@@ -178,7 +178,7 @@ export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchPr
       {/* Quiet Minimal Footer */}
       <footer className="border-t border-[#1A1F25] py-5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-[#64748B]">
-          <span>Bicara · Voice-Powered USDC Payments on Solana Mobile</span>
+          <span>Bicara · Spoken Transaction Verification &amp; accessible-signing Layer on Solana</span>
           <span>Dev3pack Global Hackathon Prototype · Nov 27–29, 2026</span>
         </div>
       </footer>

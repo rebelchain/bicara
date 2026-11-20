@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            'ELEVENLABS_API_KEY belum dikonfigurasi di server. Tambahkan ELEVENLABS_API_KEY di .env lokal atau AI Studio Secrets.',
+            'ELEVENLABS_API_KEY is not configured on the server. Add ELEVENLABS_API_KEY to your local .env or AI Studio Secrets.',
           code: 'MISSING_ELEVENLABS_KEY',
         },
         { status: 503 }
@@ -21,12 +21,12 @@ export async function POST(req: NextRequest) {
     const audio = incoming.get('audio');
     if (!(audio instanceof Blob) || audio.size === 0) {
       return NextResponse.json(
-        { error: 'Field "audio" (file .m4a/.wav/.webm) wajib dikirim dalam multipart/form-data.' },
+        { error: 'Field "audio" (.m4a/.wav/.webm file) is required in multipart/form-data.' },
         { status: 400 }
       );
     }
 
-    const languageCode = String(incoming.get('language_code') || 'ind');
+    const languageCode = String(incoming.get('language_code') || 'eng');
     const rawKeyterms = incoming.get('keyterms');
 
     const upstream = new FormData();
@@ -38,10 +38,20 @@ export async function POST(req: NextRequest) {
       try {
         const parsed = JSON.parse(rawKeyterms);
         if (Array.isArray(parsed)) {
-          for (const term of parsed.slice(0, 100)) {
-            if (typeof term === 'string' && term.trim()) {
-              upstream.append('keyterms', term.trim());
-            }
+          const seen = new Set<string>();
+          const validTerms: string[] = [];
+          for (const rawTerm of parsed) {
+            if (typeof rawTerm !== 'string') continue;
+            const term = rawTerm.trim().replace(/\s+/g, ' ');
+            if (!term || term.length > 50) continue;
+            if (term.split(' ').length > 5) continue;
+            if (seen.has(term)) continue;
+            seen.add(term);
+            validTerms.push(term);
+            if (validTerms.length >= 1000) break;
+          }
+          for (const term of validTerms) {
+            upstream.append('keyterms', term);
           }
         }
       } catch {

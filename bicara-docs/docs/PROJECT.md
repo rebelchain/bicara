@@ -1,7 +1,7 @@
 # PROJECT.md — Bicara
 
 ## One-Liner
-> A global accessibility layer for on-chain payments and verified swaps — enabling blind and low-vision users worldwide to verify addresses, hear exactly what a transaction will do before signing, and authorize safely with hardware biometrics.
+> Before you sign anything on Solana, Bicara reads exactly what the transaction will do — built blind-first so if it works with zero screen, it works for everyone.
 
 *(Fun fact: the name **Bicara** means "speak" in Bahasa Indonesia.)*
 
@@ -9,12 +9,16 @@
 
 ## The Problem
 
-Self-custodial crypto wallets are built around visual verification. For blind and low-vision users, two core moments fail completely:
+Self-custodial crypto wallets force users to approve opaque transactions they cannot meaningfully inspect before signing. Every day, sighted and non-sighted users alike face blind signing — comparing 44-character Base58 addresses, deciphering raw token approvals, and guessing what a DEX swap or smart-contract prompt will actually do. According to Chainalysis, approval phishing alone cost crypto users **$516.8 million in 2022** because wallets hide real transaction outcomes behind unreadable signing popups.
+
+Blind and low-vision users are the most extreme case of this exact same failure — and therefore the strongest proof case. If a transaction verification layer works reliably with zero screen, it eliminates blind signing for everyone. Specifically, two core moments break completely when visual inspection is unavailable or untrustworthy:
 1. **Address verification**: A user cannot visually compare a 44-character Base58 public key to be sure funds are going to the right person.
 2. **Transaction comprehension before signing**: A user cannot read a wallet's signing popup — or a DEX swap breakdown (input/output tokens, price impact, slippage, fees, new token account rent, unknown mints) — to understand what a transaction will actually do before approving it.
 
 ### Evidence Base
-- **Global scale (WHO)**: Globally, **at least 2.2 billion people** have a near or distance vision impairment; in **at least 1 billion** of these cases, vision impairment could have been prevented or has yet to be addressed.
+- **Universal blind-signing loss (Chainalysis)**: Approval phishing — where users sign deceptive wallet prompts without understanding the real permissions granted — stole **$516.8 million** across crypto in 2022 alone.
+  - Source: [Chainalysis — 2023 Crypto Crime Report (Approval Phishing)](https://www.chainalysis.com/blog/2023-crypto-crime-report-introduction/)
+- **Global scale of vision impairment (WHO)**: Globally, **at least 2.2 billion people** have a near or distance vision impairment; in **at least 1 billion** of these cases, vision impairment could have been prevented or has yet to be addressed.
   - Source: [World Health Organization — Blindness and Vision Impairment Fact Sheet](https://www.who.int/news-room/fact-sheets/detail/blindness-and-visual-impairment)
 - **Empirical wallet accessibility study**: Academic evaluation of MetaMask with blind and visually impaired users documents severe navigation barriers, inaccessible transaction confirmation flows, and inability to verify addresses and signing details independently.
   - Source: [Zhou et al., SOUPS 2023 — Accessibility of Crypto Wallets for Blind Users (MetaMask Study)](https://www.usenix.org/system/files/soups2023-zhou.pdf)

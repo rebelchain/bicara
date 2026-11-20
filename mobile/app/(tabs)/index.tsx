@@ -22,6 +22,7 @@ import {
 } from '../../src/services/haptics';
 import { truncateAddress } from '../../src/services/solana';
 import { speakEyesFree } from '../../src/services/speech';
+import { EN_UI_COPY, EN_VOICE_SCRIPTS } from '../../src/i18n/en';
 
 export default function EyesFreeHomeScreen() {
   const { account, connect, disconnect } = useMobileWallet();
@@ -34,10 +35,7 @@ export default function EyesFreeHomeScreen() {
 
   // Zero-Silent-Screen welcome narration on first launch
   useEffect(() => {
-    void speakEyesFree(
-      'Selamat datang di Bicara. Sentuh layar di mana saja untuk menguji mikrofon, atau hubungkan dompet Solana Mobile kamu.',
-      'tick'
-    );
+    void speakEyesFree(EN_VOICE_SCRIPTS.onboardingWelcome(), 'tick');
   }, []);
 
   // Live Haptic Telemetry listener (handy when mirroring via scrcpy)
@@ -49,14 +47,18 @@ export default function EyesFreeHomeScreen() {
     try {
       if (account) {
         await disconnect();
-        await speakEyesFree('Dompet Solana diputuskan.', 'tick');
+        await speakEyesFree(EN_UI_COPY.home.walletDisconnectedSpoken, 'tick');
       } else {
         await triggerHaptic('tick');
         await connect();
-        await speakEyesFree('Dompet Solana Mobile berhasil terhubung di Devnet.', 'success');
+        const connectedAddr = account?.address?.toString() ?? '';
+        const spoken = connectedAddr
+          ? EN_VOICE_SCRIPTS.onboardingWalletReady(connectedAddr.slice(-4))
+          : EN_UI_COPY.home.walletConnectedFallbackSpoken;
+        await speakEyesFree(spoken, 'success');
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Gagal menghubungkan dompet MWA.';
+      const msg = err instanceof Error ? err.message : EN_UI_COPY.home.walletConnectError;
       await speakEyesFree(msg, 'error');
     }
   };
@@ -65,15 +67,13 @@ export default function EyesFreeHomeScreen() {
     if (recorder.isRecording) {
       const uri = await recorder.stopRecording();
       await speakEyesFree(
-        uri
-          ? 'Rekaman suara selesai disimpan. Siap dikirim ke ElevenLabs Scribe versi dua di Step tiga.'
-          : 'Rekaman dihentikan.',
+        uri ? EN_UI_COPY.home.recordingSavedSpoken : EN_UI_COPY.home.recordingStoppedSpoken,
         'success'
       );
     } else {
       const started = await recorder.startRecording();
       if (started) {
-        await speakEyesFree('Mendengarkan. Bicara sekarang.', 'listen');
+        await speakEyesFree(EN_UI_COPY.home.listeningSpoken, 'listen');
       }
     }
   };
@@ -84,15 +84,10 @@ export default function EyesFreeHomeScreen() {
     try {
       const data = await checkVoiceProxyHealth();
       setProxyStatus(data);
-      await speakEyesFree(
-        'Koneksi ke server proxy suara Bicara berhasil terhubung.',
-        'success'
-      );
+      await speakEyesFree(EN_UI_COPY.home.proxyConnectedSpoken, 'success');
     } catch (err) {
       const message =
-        err instanceof Error
-          ? err.message
-          : 'Gagal terhubung ke server proxy. Cek adb reverse tcp:3000 tcp:3000.';
+        err instanceof Error ? err.message : EN_UI_COPY.home.proxyErrorFallback;
       setProxyError(message);
       await speakEyesFree(message, 'error');
     } finally {
@@ -108,14 +103,16 @@ export default function EyesFreeHomeScreen() {
         {/* Top Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.kicker}>Step 1 · Physical Android USB Build</Text>
+            <Text style={styles.kicker}>{EN_UI_COPY.home.kicker}</Text>
             <Text style={styles.brand}>Bicara</Text>
           </View>
           <Pressable
             onPress={() => void handleWalletPress()}
             accessibilityRole="button"
             accessibilityLabel={
-              walletAddress ? 'Putuskan dompet Solana' : 'Hubungkan dompet Solana Mobile'
+              walletAddress
+                ? EN_UI_COPY.home.disconnectWalletA11y
+                : EN_UI_COPY.home.connectWalletA11y
             }
             style={[styles.walletBtn, walletAddress ? styles.walletConnected : styles.walletPrimary]}
           >
@@ -125,7 +122,7 @@ export default function EyesFreeHomeScreen() {
                 walletAddress ? styles.walletBtnTextLight : styles.walletBtnTextDark,
               ]}
             >
-              {walletAddress ? truncateAddress(walletAddress, 4, 4) : 'Connect MWA'}
+              {walletAddress ? truncateAddress(walletAddress, 4, 4) : EN_UI_COPY.home.connectWallet}
             </Text>
           </Pressable>
         </View>
@@ -136,8 +133,8 @@ export default function EyesFreeHomeScreen() {
           accessibilityRole="button"
           accessibilityLabel={
             recorder.isRecording
-              ? 'Berhenti merekam suara'
-              : 'Sentuh di mana saja untuk mulai bicara'
+              ? EN_UI_COPY.home.stopRecordingA11y
+              : EN_UI_COPY.home.startRecordingA11y
           }
           style={[
             styles.tapCanvas,
@@ -151,29 +148,31 @@ export default function EyesFreeHomeScreen() {
             ]}
           >
             <Text style={styles.micLabel}>
-              {recorder.isRecording ? 'STOP' : 'BICARA'}
+              {recorder.isRecording
+                ? EN_UI_COPY.home.micStopLabel
+                : EN_UI_COPY.home.micSpeakLabel}
             </Text>
           </View>
           <Text style={styles.canvasTitle}>
             {recorder.isRecording
-              ? 'Sedang merekam (expo-audio)...'
-              : 'Sentuh area ini untuk mulai bicara'}
+              ? EN_UI_COPY.home.recordingTitle
+              : EN_UI_COPY.home.idleTitle}
           </Text>
           <Text style={styles.canvasSub}>
             {recorder.lastRecordingUri
               ? `Last capture: ${recorder.lastRecordingUri.slice(-28)}`
-              : 'Mode Eyes-Free · Zero-Silent-Screen · Physical Haptics'}
+              : EN_UI_COPY.home.idleSub}
           </Text>
           {recorder.error ? <Text style={styles.errorText}>{recorder.error}</Text> : null}
         </Pressable>
 
         {/* Physical expo-haptics Verification Panel */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Verifikasi Fisik expo-haptics</Text>
+          <Text style={styles.cardTitle}>{EN_UI_COPY.home.hapticsCardTitle}</Text>
           <Text style={styles.cardSub}>
             {lastHaptic
-              ? `Terakhir: ${lastHaptic.label} (${lastHaptic.apiCall})`
-              : 'Ketuk salah satu pola getar di bawah untuk merasakan kode aksesibilitas di HP.'}
+              ? `${EN_UI_COPY.home.hapticsLastPrefix}: ${lastHaptic.label} (${lastHaptic.apiCall})`
+              : EN_UI_COPY.home.hapticsCardEmpty}
           </Text>
           <View style={styles.hapticGrid}>
             {(
@@ -189,7 +188,7 @@ export default function EyesFreeHomeScreen() {
                 key={item.id}
                 onPress={() => void triggerHaptic(item.id)}
                 accessibilityRole="button"
-                accessibilityLabel={`Uji getar ${item.label}`}
+                accessibilityLabel={`${EN_UI_COPY.home.hapticsBtnA11yPrefix} ${item.label}`}
                 style={styles.hapticBtn}
               >
                 <Text style={styles.hapticBtnText}>{item.label}</Text>
@@ -200,17 +199,17 @@ export default function EyesFreeHomeScreen() {
 
         {/* USB adb reverse -> Next.js Voice Proxy Health Panel */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Koneksi Voice Proxy (adb reverse)</Text>
+          <Text style={styles.cardTitle}>{EN_UI_COPY.home.proxyCardTitle}</Text>
           <Text style={styles.monoSmall}>Target: {API_BASE_URL}/api/health</Text>
           <Pressable
             onPress={() => void handleTestProxy()}
             disabled={checkingProxy}
             accessibilityRole="button"
-            accessibilityLabel="Cek koneksi ke server voice proxy"
+            accessibilityLabel={EN_UI_COPY.home.proxyBtnA11y}
             style={styles.proxyBtn}
           >
             <Text style={styles.proxyBtnText}>
-              {checkingProxy ? 'Mengecek...' : 'Cek Koneksi Voice Proxy'}
+              {checkingProxy ? EN_UI_COPY.home.proxyBtnChecking : EN_UI_COPY.home.proxyBtnIdle}
             </Text>
           </Pressable>
           {proxyStatus ? (

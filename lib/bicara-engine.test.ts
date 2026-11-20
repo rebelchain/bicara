@@ -9,6 +9,7 @@ import {
   buildScribeKeyterms,
   deriveSimulatedPda,
   executeSimulatedTransfer,
+  formatTxSummarySpeech,
   narrateTabScreen,
   normalizeContactSeed,
   parseIntentFallback,
@@ -29,77 +30,88 @@ test('usdcToRawUnits uses exact 6-decimal BigInt scaling', () => {
   assert.throws(() => usdcToRawUnits(-1));
 });
 
-test('parseSpokenNumber handles Indonesian and English spoken numerals', () => {
+test('parseSpokenNumber handles English and Indonesian spoken numerals', () => {
+  assert.equal(parseSpokenNumber('five'), 5);
+  assert.equal(parseSpokenNumber('twenty'), 20);
   assert.equal(parseSpokenNumber('lima'), 5);
   assert.equal(parseSpokenNumber('dua puluh'), 20);
-  assert.equal(parseSpokenNumber('lima belas'), 15);
-  assert.equal(parseSpokenNumber('sepuluh ribu'), 10000);
   assert.equal(parseSpokenNumber('dua setengah'), 2.5);
   assert.equal(parseSpokenNumber('12.5'), 12.5);
   assert.equal(parseSpokenNumber('5,25'), 5.25);
 });
 
-test('parseIntentFallback parses Indonesian, English, and edge-case payment commands', () => {
-  const idSend = parseIntentFallback('Kirim 5 dolar ke Ahmad');
-  assert.equal(idSend.action, 'send');
-  assert.equal(idSend.amount, 5);
-  assert.equal(idSend.currency, 'USDC');
-  assert.equal(idSend.recipient, 'Ahmad');
-  assert.equal(idSend.confidence, 'high');
-
-  const spokenWords = parseIntentFallback('transfer dua puluh USDC ke Budi');
-  assert.equal(spokenWords.action, 'send');
-  assert.equal(spokenWords.amount, 20);
-  assert.equal(spokenWords.currency, 'USDC');
-  assert.equal(spokenWords.recipient, 'Budi');
-  assert.equal(spokenWords.confidence, 'high');
-
-  const enSend = parseIntentFallback('send 10 to Sarah');
+test('parseIntentFallback parses English send, swap_quote, check_price, and edge cases', () => {
+  const enSend = parseIntentFallback('Send 5 USDC to Ahmad');
   assert.equal(enSend.action, 'send');
-  assert.equal(enSend.amount, 10);
+  assert.equal(enSend.amount, 5);
   assert.equal(enSend.currency, 'USDC');
-  assert.equal(enSend.recipient, 'Sarah');
+  assert.equal(enSend.recipient, 'Ahmad');
+  assert.equal(enSend.confidence, 'high');
 
-  const missingAmount = parseIntentFallback('minta tolong kirim ke Ahmad');
+  const swapQuote = parseIntentFallback('Swap 10 USDC to SOL');
+  assert.equal(swapQuote.action, 'swap_quote');
+  assert.equal(swapQuote.amount, 10);
+  assert.equal(swapQuote.currency, 'USDC');
+  assert.equal(swapQuote.outputCurrency, 'SOL');
+  assert.equal(swapQuote.swapDirection, 'sell');
+  assert.equal(swapQuote.confidence, 'high');
+
+  const unknownTokenSwap = parseIntentFallback('Swap 10 USDC to unknown token XYZ');
+  assert.equal(unknownTokenSwap.action, 'swap_quote');
+  assert.equal(unknownTokenSwap.currency, 'USDC');
+  assert.equal(unknownTokenSwap.outputCurrency, 'XYZ');
+
+  const checkPrice = parseIntentFallback('Check price');
+  assert.equal(checkPrice.action, 'check_price');
+  assert.equal(checkPrice.currency, 'SOL');
+
+  const missingAmount = parseIntentFallback('Please send to Ahmad');
   assert.equal(missingAmount.action, 'send');
   assert.equal(missingAmount.amount, null);
   assert.equal(missingAmount.recipient, 'Ahmad');
   assert.equal(missingAmount.confidence, 'low');
 
-  const nonPayment = parseIntentFallback('cuaca hari ini bagaimana?');
+  const nonPayment = parseIntentFallback('How is the weather today?');
   assert.equal(nonPayment.action, 'unknown');
   assert.equal(nonPayment.amount, null);
   assert.equal(nonPayment.recipient, null);
 });
 
 test('parseIntentFallback parses Eyes-Free voice navigation, queries, and confirmation commands', () => {
-  assert.equal(parseIntentFallback('Buka kontak').action, 'navigate');
-  assert.equal(parseIntentFallback('Buka kontak').targetTab, 'contacts');
+  assert.equal(parseIntentFallback('Open contacts').action, 'navigate');
+  assert.equal(parseIntentFallback('Open contacts').targetTab, 'contacts');
 
-  assert.equal(parseIntentFallback('Buka riwayat').action, 'navigate');
-  assert.equal(parseIntentFallback('Buka riwayat').targetTab, 'history');
+  assert.equal(parseIntentFallback('Open history').action, 'navigate');
+  assert.equal(parseIntentFallback('Open history').targetTab, 'history');
 
-  assert.equal(parseIntentFallback('Kembali ke beranda').action, 'navigate');
-  assert.equal(parseIntentFallback('Kembali ke beranda').targetTab, 'home');
+  assert.equal(parseIntentFallback('Go home').action, 'navigate');
+  assert.equal(parseIntentFallback('Go home').targetTab, 'home');
 
-  assert.equal(parseIntentFallback('Cek saldo saya').action, 'check_balance');
-  assert.equal(parseIntentFallback('Baca kontak').action, 'list_contacts');
-  assert.equal(parseIntentFallback('Transaksi terakhir').action, 'read_history');
-  assert.equal(parseIntentFallback('Ulangi').action, 'repeat');
-  assert.equal(parseIntentFallback('Bantuan').action, 'help');
-  assert.equal(parseIntentFallback('Ya').action, 'confirm');
-  assert.equal(parseIntentFallback('Batal').action, 'cancel');
+  assert.equal(parseIntentFallback('Check balance').action, 'check_balance');
+  assert.equal(parseIntentFallback('Read contacts').action, 'list_contacts');
+  assert.equal(parseIntentFallback('Read history').action, 'read_history');
+  assert.equal(parseIntentFallback('Repeat').action, 'repeat');
+  assert.equal(parseIntentFallback('Help').action, 'help');
+  assert.equal(parseIntentFallback('Yes').action, 'confirm');
+  assert.equal(parseIntentFallback('Cancel').action, 'cancel');
 });
 
-test('verifySpeakerVoiceprint accepts owner User A, blocks Impostor B, and allows help/repeat', () => {
-  const ownerOk = verifySpeakerVoiceprint(DEFAULT_VOICEPRINT_PROFILE, 'owner', 'send');
-  assert.equal(ownerOk.verified, true);
-  assert.equal(ownerOk.scorePct, 94);
+test('verifySpeakerVoiceprint never hardcodes 94% and evaluates measured hardware scores honestly', () => {
+  const uncalibratedOwner = verifySpeakerVoiceprint(DEFAULT_VOICEPRINT_PROFILE, 'owner', 'send');
+  assert.equal(uncalibratedOwner.verified, true);
+  assert.equal(uncalibratedOwner.measured, false);
+  assert.equal(uncalibratedOwner.score, null);
+  assert.equal(uncalibratedOwner.scorePct, null);
 
-  const impostorBlocked = verifySpeakerVoiceprint(DEFAULT_VOICEPRINT_PROFILE, 'impostor', 'send');
-  assert.equal(impostorBlocked.verified, false);
-  assert.equal(impostorBlocked.haptic, 'error');
-  assert.match(impostorBlocked.spokenMessage ?? '', /tidak cocok/i);
+  const measuredPass = verifySpeakerVoiceprint(DEFAULT_VOICEPRINT_PROFILE, 'owner', 'send', 0.82);
+  assert.equal(measuredPass.verified, true);
+  assert.equal(measuredPass.measured, true);
+  assert.equal(measuredPass.scorePct, 82);
+
+  const measuredFail = verifySpeakerVoiceprint(DEFAULT_VOICEPRINT_PROFILE, 'impostor', 'send', 0.31);
+  assert.equal(measuredFail.verified, false);
+  assert.equal(measuredFail.haptic, 'error');
+  assert.match(measuredFail.spokenMessage ?? '', /31 percent/i);
 
   const helpBypass = verifySpeakerVoiceprint(DEFAULT_VOICEPRINT_PROFILE, 'impostor', 'help');
   assert.equal(helpBypass.verified, true);
@@ -113,7 +125,38 @@ test('verifySpeakerVoiceprint accepts owner User A, blocks Impostor B, and allow
   assert.equal(unenrolled.verified, false);
 });
 
-test('narrateTabScreen produces spoken Indonesian summaries for Home, Contacts, and History', () => {
+test('formatTxSummarySpeech formats send and quote-only swap summaries cleanly', () => {
+  const sendSpeech = formatTxSummarySpeech({
+    action: 'send',
+    inputAmount: 5,
+    inputSymbol: 'USDC',
+    recipientLabel: 'Ahmad',
+    recipientStatus: 'saved contact',
+    recipientLast4: '3mN3',
+    formattedFee: 'under one cent',
+    createsNewAta: false,
+    includeFirstUseUsdcNote: true,
+  });
+  assert.match(sendSpeech, /USDC is a US-dollar stablecoin/);
+  assert.match(sendSpeech, /send 5 USDC to Ahmad, saved contact, wallet ending 3mN3/);
+  assert.match(sendSpeech, /Say yes to continue or cancel to stop/);
+
+  const swapSpeech = formatTxSummarySpeech({
+    action: 'swap_quote',
+    inputAmount: 10,
+    inputSymbol: 'USDC',
+    outputAmount: 0.05,
+    outputSymbol: 'SOL',
+    priceImpactLevel: 'low',
+    maxSlippagePct: 0.5,
+    formattedFee: 'under 3 cents',
+    quoteOnlySafeMode: true,
+  });
+  assert.match(swapSpeech, /sell 10 USDC for about 0\.05 SOL/);
+  assert.match(swapSpeech, /Quote-only Devnet safe mode is active/);
+});
+
+test('narrateTabScreen produces spoken English summaries for Home, Contacts, and History', () => {
   const homeCue = narrateTabScreen('home', {
     walletConnected: true,
     senderBalanceUsdc: 25,
@@ -121,7 +164,7 @@ test('narrateTabScreen produces spoken Indonesian summaries for Home, Contacts, 
     contacts: SEED_CONTACTS,
     transactions: SEED_TRANSACTIONS,
   });
-  assert.match(homeCue, /Halaman Beranda/);
+  assert.match(homeCue, /Home screen/);
   assert.match(homeCue, /25\.00 USDC/);
 
   const contactsCue = narrateTabScreen('contacts', {
@@ -131,7 +174,7 @@ test('narrateTabScreen produces spoken Indonesian summaries for Home, Contacts, 
     contacts: SEED_CONTACTS,
     transactions: SEED_TRANSACTIONS,
   });
-  assert.match(contactsCue, /Halaman Kontak/);
+  assert.match(contactsCue, /Contacts screen/);
   assert.match(contactsCue, /Ahmad/);
 
   const historyCue = narrateTabScreen('history', {
@@ -141,29 +184,32 @@ test('narrateTabScreen produces spoken Indonesian summaries for Home, Contacts, 
     contacts: SEED_CONTACTS,
     transactions: SEED_TRANSACTIONS,
   });
-  assert.match(historyCue, /Halaman Riwayat/);
+  assert.match(historyCue, /History screen/);
   assert.match(historyCue, /Budi/);
 
   assert.equal(ONBOARDING_STEPS.length, 6);
   assert.equal(ONBOARDING_STEPS[ONBOARDING_STEPS.length - 1].progressPct, 100);
 });
 
-test('validateIntent detects missing amount, missing recipient, navigation, and unknown intent', () => {
-  const ok = validateIntent(parseIntentFallback('kirim 5 dolar ke Ahmad'));
+test('validateIntent detects missing amount, missing recipient, swap_quote, and unknown intent', () => {
+  const ok = validateIntent(parseIntentFallback('send 5 USDC to Ahmad'));
   assert.equal(ok.valid, true);
 
-  const navOk = validateIntent(parseIntentFallback('buka kontak'));
+  const swapOk = validateIntent(parseIntentFallback('swap 10 USDC to SOL'));
+  assert.equal(swapOk.valid, true);
+
+  const navOk = validateIntent(parseIntentFallback('open contacts'));
   assert.equal(navOk.valid, true);
 
-  const noAmount = validateIntent(parseIntentFallback('kirim ke Ahmad'));
+  const noAmount = validateIntent(parseIntentFallback('send to Ahmad'));
   assert.equal(noAmount.valid, false);
   assert.equal(noAmount.missingField, 'amount');
 
-  const noRecipient = validateIntent(parseIntentFallback('kirim 5 dolar'));
+  const noRecipient = validateIntent(parseIntentFallback('send 5 USDC'));
   assert.equal(noRecipient.valid, false);
   assert.equal(noRecipient.missingField, 'recipient');
 
-  const unknown = validateIntent(parseIntentFallback('halo apa kabar'));
+  const unknown = validateIntent(parseIntentFallback('hello how are you'));
   assert.equal(unknown.valid, false);
   assert.equal(unknown.missingField, null);
 });
@@ -193,12 +239,27 @@ test('normalizeContactSeed & deriveSimulatedPda stay deterministic across casing
   assert.equal(truncateWallet(SEED_CONTACTS[0].wallet, 4, 3), '7xKp...mN3');
 });
 
-test('buildScribeKeyterms includes nav commands, domain terms, and contact names without duplicates', () => {
-  const terms = buildScribeKeyterms(SEED_CONTACTS);
+test('buildScribeKeyterms enforces English commands, <= 50 chars, <= 5 words, and deduplication', () => {
+  const noisyContacts = [
+    ...SEED_CONTACTS,
+    {
+      ...SEED_CONTACTS[0],
+      id: 'cnt-too-long',
+      name: 'This Contact Name Exceeds Fifty Characters And Must Be Filtered Out Completely',
+    },
+    {
+      ...SEED_CONTACTS[0],
+      id: 'cnt-too-many-words',
+      name: 'One Two Three Four Five Six',
+    },
+  ];
+  const terms = buildScribeKeyterms(noisyContacts);
   assert.equal(terms.includes('USDC'), true);
-  assert.equal(terms.includes('buka kontak'), true);
-  assert.equal(terms.includes('cek saldo'), true);
+  assert.equal(terms.includes('open contacts'), true);
+  assert.equal(terms.includes('check price'), true);
+  assert.equal(terms.includes('swap'), true);
   assert.equal(terms.includes('Ahmad'), true);
+  assert.equal(terms.every((t) => t.length <= 50 && t.split(' ').length <= 5), true);
   assert.equal(new Set(terms).size, terms.length);
 });
 
@@ -214,7 +275,7 @@ test('executeSimulatedTransfer enforces confirmation, balance, wallet connection
     recipient: ahmad,
     amount: 5,
     currency: 'USDC',
-    voiceTranscript: 'kirim 5 dolar ke Ahmad',
+    voiceTranscript: 'send 5 USDC to Ahmad',
     resolutionSource: 'on_chain',
   });
   assert.equal(unconfirmed.ok, false);
@@ -228,7 +289,7 @@ test('executeSimulatedTransfer enforces confirmation, balance, wallet connection
     recipient: ahmad,
     amount: 100,
     currency: 'USDC',
-    voiceTranscript: 'kirim 100 dolar ke Ahmad',
+    voiceTranscript: 'send 100 USDC to Ahmad',
     resolutionSource: 'on_chain',
   });
   assert.equal(lowBalance.ok, false);
@@ -242,7 +303,7 @@ test('executeSimulatedTransfer enforces confirmation, balance, wallet connection
     recipient: rakaNoAta,
     amount: 5,
     currency: 'USDC',
-    voiceTranscript: 'kirim 5 dolar ke Raka',
+    voiceTranscript: 'send 5 USDC to Raka',
     resolutionSource: 'supabase',
     autoCreateAta: false,
   });
@@ -257,7 +318,7 @@ test('executeSimulatedTransfer enforces confirmation, balance, wallet connection
     recipient: ahmad,
     amount: 5,
     currency: 'USDC',
-    voiceTranscript: 'kirim 5 dolar ke Ahmad',
+    voiceTranscript: 'send 5 USDC to Ahmad',
     resolutionSource: 'on_chain',
     timestampIso: '2026-11-19T10:00:00Z',
   });
@@ -265,5 +326,5 @@ test('executeSimulatedTransfer enforces confirmation, balance, wallet connection
   assert.equal(success.nextSenderBalance, 20);
   assert.equal(success.tx?.rawUnits, '5000000');
   assert.equal(success.instruction?.decimals, 6);
-  assert.match(success.spokenMessage, /Berhasil\. Kamu mengirim 5 USDC ke Ahmad\./);
+  assert.match(success.spokenMessage, /Sent\. You sent 5 USDC to Ahmad\./);
 });

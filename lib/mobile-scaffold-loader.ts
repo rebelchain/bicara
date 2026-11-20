@@ -75,12 +75,20 @@ const MOBILE_MANIFEST: Array<Omit<MobileScaffoldFile, 'content'>> = [
     purpose: 'Physical Android expo-haptics 4-code accessibility engine + scrcpy listener.',
   },
   {
+    id: 'en-locale',
+    label: 'src/i18n/en.ts',
+    relativePath: 'mobile/src/i18n/en.ts',
+    category: 'Eyes-Free & Audio',
+    stepTag: 'Gate A',
+    purpose: 'English locale dictionary (EN_VOICE_SCRIPTS verbatim from VOICE_SPEC.md + UI copy).',
+  },
+  {
     id: 'speech',
     label: 'src/services/speech.ts',
     relativePath: 'mobile/src/services/speech.ts',
     category: 'Eyes-Free & Audio',
-    stepTag: 'Step 1',
-    purpose: 'Zero-Silent-Screen Indonesian speech + TalkBack AccessibilityInfo announcer.',
+    stepTag: 'Gate A',
+    purpose: 'Zero-Silent-Screen English (en-US) speech + TalkBack AccessibilityInfo announcer.',
   },
   {
     id: 'recorder',
@@ -127,8 +135,8 @@ const MOBILE_MANIFEST: Array<Omit<MobileScaffoldFile, 'content'>> = [
     label: 'app/(tabs)/_layout.tsx',
     relativePath: 'mobile/app/(tabs)/_layout.tsx',
     category: 'Screens',
-    stepTag: 'Step 1',
-    purpose: 'Spoken Bottom Tab Navigator firing Soft Tick + Indonesian narration on every tab switch.',
+    stepTag: 'Gate A',
+    purpose: 'Spoken Bottom Tab Navigator firing Soft Tick + English narration on every tab switch.',
   },
   {
     id: 'home-screen',

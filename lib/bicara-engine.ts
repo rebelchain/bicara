@@ -5,6 +5,8 @@ export type HapticPatternId = 'listen' | 'tick' | 'confirm' | 'success' | 'error
 
 export type VoiceAction =
   | 'send'
+  | 'swap_quote'
+  | 'check_price'
   | 'navigate'
   | 'check_balance'
   | 'list_contacts'
@@ -19,10 +21,33 @@ export interface PaymentIntent {
   action: VoiceAction;
   targetTab?: PhoneTabId | null;
   amount: number | null;
-  currency: Currency | null;
+  currency: Currency | string | null;
+  swapDirection?: 'buy' | 'sell' | null;
+  outputCurrency?: Currency | string | null;
   recipient: string | null;
   confidence: 'high' | 'low';
   raw_amount_text: string | null;
+}
+
+export type TxSummaryAction = 'send' | 'swap_quote';
+
+export interface TxSummary {
+  action: TxSummaryAction;
+  inputAmount: number;
+  inputSymbol: string;
+  outputAmount?: number | null;
+  outputSymbol?: string | null;
+  recipientLabel?: string | null;
+  recipientStatus?: 'saved contact' | 'new recipient' | null;
+  recipientLast4?: string | null;
+  formattedFee: string;
+  createsNewAta?: boolean;
+  formattedRent?: string | null;
+  priceImpactLevel?: 'low' | 'moderate' | 'high' | null;
+  maxSlippagePct?: number | null;
+  quoteOnlySafeMode?: boolean;
+  includeFirstUseUsdcNote?: boolean;
+  anomalies?: string[];
 }
 
 export interface Contact {
@@ -74,8 +99,9 @@ export interface VoiceprintProfile {
 export interface VoiceprintCheckResult {
   verified: boolean;
   bypassed: boolean;
-  score: number;
-  scorePct: number;
+  measured: boolean;
+  score: number | null;
+  scorePct: number | null;
   threshold: number;
   speakerLabel: string;
   haptic: HapticPatternId;
@@ -157,58 +183,58 @@ export const ONBOARDING_STEPS: OnboardingStepSpec[] = [
   {
     index: 0,
     id: 'welcome',
-    title: 'Selamat Datang di Bicara',
+    title: 'Welcome to Bicara',
     progressPct: 0,
     spokenInstruction:
-      'Selamat datang di Bicara, dompet USDC berbasis suara di Solana Mobile. Semua menu dibacakan otomatis dan kamu cukup sentuh layar di mana saja untuk bicara.',
+      'Welcome to Bicara, an eyes-free accessibility layer for Solana payments. Tap anywhere on the screen to speak.',
     haptic: 'tick',
   },
   {
     index: 1,
     id: 'wallet',
-    title: 'Hubungkan Dompet Solana Mobile',
+    title: 'Connect Solana Mobile Wallet',
     progressPct: 15,
     spokenInstruction:
-      'Langkah pertama, kita hubungkan dompet Solana Mobile kamu lewat Mobile Wallet Adapter dan Seed Vault agar tanda tangan transaksi selalu terlindungi.',
+      'First, connect your Solana Mobile wallet via Mobile Wallet Adapter. Every transfer and contact edit will still require your device hardware biometric.',
     haptic: 'tick',
   },
   {
     index: 2,
     id: 'phrase_1',
-    title: 'Daftar Sidik Suara (1/3)',
+    title: 'Optional Voiceprint (1/3)',
     progressPct: 33,
-    promptPhrase: 'Bicara adalah dompet suara saya',
+    promptPhrase: 'Bicara is my voice accessibility wallet.',
     spokenInstruction:
-      'Sekarang daftarkan sidik suara pemilik dompet. Contoh pertama, ucapkan: Bicara adalah dompet suara saya.',
+      'Please say: Bicara is my voice accessibility wallet.',
     haptic: 'listen',
   },
   {
     index: 3,
     id: 'phrase_2',
-    title: 'Daftar Sidik Suara (2/3)',
+    title: 'Optional Voiceprint (2/3)',
     progressPct: 66,
-    promptPhrase: 'Kirim lima dolar ke kontak saya',
+    promptPhrase: 'Check my Solana balance and saved contacts.',
     spokenInstruction:
-      'Bagus, 33 persen terekam. Contoh kedua, ucapkan: Kirim lima dolar ke kontak saya.',
+      'Good, 33 percent complete. Now say: Check my Solana balance and saved contacts.',
     haptic: 'tick',
   },
   {
     index: 4,
     id: 'phrase_3',
-    title: 'Daftar Sidik Suara (3/3)',
+    title: 'Optional Voiceprint (3/3)',
     progressPct: 100,
-    promptPhrase: 'Cek saldo dompet Solana saya',
+    promptPhrase: 'Confirm my verified payment with hardware biometrics.',
     spokenInstruction:
-      'Hampir selesai, 66 persen terekam. Terakhir, ucapkan: Cek saldo dompet Solana saya.',
+      'Almost done, 66 percent. Finally say: Confirm my verified payment with hardware biometrics.',
     haptic: 'tick',
   },
   {
     index: 5,
     id: 'complete',
-    title: 'Sidik Suara Terverifikasi',
+    title: 'Setup Complete',
     progressPct: 100,
     spokenInstruction:
-      'Sidik suara aktif 100 persen dan terikat ke dompet kamu. Ucapkan cek saldo, buka kontak, buka riwayat, bantuan, atau kirim 5 dolar ke Ahmad.',
+      'Setup complete. You can say check balance, check price, open contacts, open history, send 5 USDC to Ahmad, or swap 10 USDC to SOL.',
     haptic: 'success',
   },
 ];
@@ -284,36 +310,45 @@ export const SEED_TRANSACTIONS: TransactionRecord[] = [
 ];
 
 export const VOICE_SCRIPTS = {
-  confirmSend: (amount: number, currency: string, name: string) =>
-    `Konfirmasi: kirim ${formatAmountSpeech(amount)} ${currency} ke ${name}? Ucapkan ya untuk konfirmasi atau batal untuk membatalkan.`,
+  confirmSend: (amount: number, currency: string, name: string, last4?: string) =>
+    last4
+      ? `You are about to send ${formatAmountSpeech(amount)} ${currency} to ${name}, a saved contact, wallet ending ${last4}. Say yes to continue or cancel to stop.`
+      : `You are about to send ${formatAmountSpeech(amount)} ${currency} to ${name}. Say yes to continue or cancel to stop.`,
   success: (amount: number, currency: string, name: string) =>
-    `Berhasil. Kamu mengirim ${formatAmountSpeech(amount)} ${currency} ke ${name}.`,
+    `Sent. You sent ${formatAmountSpeech(amount)} ${currency} to ${name}.`,
   contactNotFound: (name: string) =>
-    `Kontak ${name} tidak ditemukan. Mau tambah ke daftar kontak?`,
+    `Contact ${name} was not found. Adding a contact requires hardware biometric approval.`,
   ambiguousContact: (names: string[]) =>
-    `Ada beberapa kontak cocok: ${names.join(', ')}. Pilih penerima yang benar.`,
+    `Multiple contacts match: ${names.join(', ')}. Please choose the exact recipient.`,
   insufficientBalance: (balance: number, currency: string) =>
-    `Saldo tidak cukup. Kamu punya ${balance.toFixed(2)} ${currency}.`,
+    `Insufficient balance. You currently have ${balance.toFixed(2)} ${currency}.`,
   walletDisconnected: () =>
-    `Hubungkan dompet Solana Mobile terlebih dahulu sebelum mengirim.`,
+    `Connect your Solana Mobile wallet first before sending.`,
   unknownIntent: () =>
-    `Maaf, aku tidak mengerti. Coba ucapkan: cek saldo, buka kontak, atau kirim 5 dolar ke Ahmad.`,
+    `Sorry, I did not understand that. Try saying check balance, check price, open contacts, send 5 USDC to Ahmad, or swap 10 USDC to SOL.`,
   askAmount: (name: string) =>
-    `Berapa USDC yang ingin dikirim ke ${name}?`,
+    `How much USDC would you like to send to ${name}?`,
   askRecipient: (amount: number, currency: string) =>
-    `Kirim ${formatAmountSpeech(amount)} ${currency} kepada siapa?`,
+    `Who would you like to send ${formatAmountSpeech(amount)} ${currency} to?`,
   missingAta: (name: string) =>
-    `${name} belum punya USDC token account. Transaksi akan menyertakan biaya inisialisasi ATA sekitar 0.002 SOL.`,
+    `${name} does not have a USDC token account yet. This transfer requires creating a new token account with refundable rent.`,
   balanceReadout: (usdc: number, sol: number) =>
-    `Saldo kamu saat ini ${usdc.toFixed(2)} USDC dan ${sol.toFixed(2)} SOL untuk biaya jaringan.`,
+    `Your Devnet balance is ${usdc.toFixed(2)} USDC and ${sol.toFixed(3)} SOL.`,
+  priceReadout: (solUsd: number) =>
+    `SOL is currently around ${solUsd.toFixed(2)} US dollars. USDC is pegged to one US dollar.`,
   helpGuide: () =>
-    `Panduan suara Bicara: ucapkan cek saldo, buka kontak, buka riwayat, kembali ke beranda, ulangi, atau kirim 5 dolar ke Ahmad.`,
-  voiceprintBlocked: (scorePct: number) =>
-    `Suara tidak cocok dengan pemilik dompet (${scorePct} persen). Akses diblokir demi keamanan.`,
+    `Available commands: check balance, check price, open contacts, read contacts, open history, go home, send 5 USDC to Ahmad, swap 10 USDC to SOL, repeat, or cancel.`,
+  voiceprintBlocked: (scorePct: number | null) =>
+    scorePct !== null
+      ? `Voice did not match the enrolled owner profile (${scorePct} percent). Optional convenience gate blocked access.`
+      : `Voice did not match the enrolled owner profile. Optional convenience gate blocked access.`,
   voiceprintUnenrolled: () =>
-    `Sidik suara pemilik belum didaftarkan. Selesaikan panduan onboarding suara terlebih dahulu.`,
+    `Optional voiceprint profile is not enrolled yet. Complete setup or continue without Layer 1.`,
+  unverifiedTokenBlocked: (tokenName: string) =>
+    `Blocked. ${tokenName} is not on your verified token list. Bicara blocks unverified tokens to protect against scam mints.`,
   noPendingConfirm: () =>
-    `Tidak ada transaksi yang menunggu konfirmasi saat ini.`,
+    `There is no pending transaction awaiting confirmation right now.`,
+  cancelled: () => `Action cancelled.`,
 };
 
 function formatAmountSpeech(amount: number): string {
@@ -321,7 +356,65 @@ function formatAmountSpeech(amount: number): string {
 }
 
 /**
- * Generates concise Indonesian spoken narration when entering any mobile navbar tab.
+ * Formats a TxSummary data object into plain English spoken narration.
+ * Skeleton formatter: consumes runtime-supplied fee/rent/quote values (never hardcoded).
+ */
+export function formatTxSummarySpeech(summary: TxSummary): string {
+  const parts: string[] = [];
+
+  if (summary.action === 'send') {
+    if (summary.includeFirstUseUsdcNote && summary.inputSymbol.toUpperCase() === 'USDC') {
+      parts.push('USDC is a US-dollar stablecoin.');
+    }
+
+    const recipientLabel = summary.recipientLabel ?? 'an unknown recipient';
+    const recipientStatus = summary.recipientStatus ?? 'new recipient';
+    const last4Clause = summary.recipientLast4 ? `, wallet ending ${summary.recipientLast4}` : '';
+
+    parts.push(
+      `You are about to send ${formatAmountSpeech(summary.inputAmount)} ${summary.inputSymbol} to ${recipientLabel}, ${recipientStatus}${last4Clause}. The network fee is ${summary.formattedFee}.`
+    );
+
+    if (summary.createsNewAta && summary.formattedRent) {
+      parts.push(
+        `This creates a new token account with a refundable rent deposit of ${summary.formattedRent}.`
+      );
+    }
+
+    if (summary.anomalies && summary.anomalies.length > 0) {
+      parts.push(`Warning: ${summary.anomalies.join('. ')}.`);
+    }
+
+    parts.push('Say yes to continue or cancel to stop.');
+    return parts.join(' ');
+  }
+
+  const outAmt =
+    typeof summary.outputAmount === 'number'
+      ? formatAmountSpeech(summary.outputAmount)
+      : 'an estimated amount of';
+  const outSym = summary.outputSymbol ?? 'SOL';
+  const impact = summary.priceImpactLevel ?? 'low';
+  const slippage = summary.maxSlippagePct ?? 0.5;
+
+  parts.push(
+    `You are quoting a swap to sell ${formatAmountSpeech(summary.inputAmount)} ${summary.inputSymbol} for about ${outAmt} ${outSym}. Price impact is ${impact}. Maximum slippage is ${slippage} percent. Estimated fee is ${summary.formattedFee}.`
+  );
+
+  if (summary.quoteOnlySafeMode !== false) {
+    parts.push('Quote-only Devnet safe mode is active; no mainnet funds will move.');
+  }
+
+  if (summary.anomalies && summary.anomalies.length > 0) {
+    parts.push(`Warning: ${summary.anomalies.join('. ')}.`);
+  }
+
+  parts.push('Say yes to re-check the live quote or cancel to stop.');
+  return parts.join(' ');
+}
+
+/**
+ * Generates concise English spoken narration when entering any mobile navbar tab.
  */
 export function narrateTabScreen(
   tab: PhoneTabId,
@@ -335,46 +428,56 @@ export function narrateTabScreen(
 ): string {
   if (tab === 'home') {
     if (!ctx.walletConnected) {
-      return 'Halaman Beranda. Dompet Solana belum terhubung. Ketuk hubungkan dompet untuk mulai.';
+      return 'Home screen. Solana wallet is not connected yet. Tap Connect MWA to begin.';
     }
-    return `Halaman Beranda. Saldo kamu ${ctx.senderBalanceUsdc.toFixed(2)} USDC. Sentuh layar di mana saja lalu bicara.`;
+    return `Home screen. Your balance is ${ctx.senderBalanceUsdc.toFixed(2)} USDC and ${ctx.senderBalanceSol.toFixed(3)} SOL. Tap anywhere to speak.`;
   }
 
   if (tab === 'contacts') {
     if (ctx.contacts.length === 0) {
-      return 'Halaman Kontak. Belum ada kontak tersimpan. Ketuk tambah kontak untuk menyimpan alamat baru.';
+      return 'Contacts screen. You have no saved contacts yet. Adding a contact requires hardware biometric approval.';
     }
     const topNames = ctx.contacts.slice(0, 4).map((c) => c.name).join(', ');
-    const onChainCount = ctx.contacts.filter((c) => c.onChain).length;
-    return `Halaman Kontak. Kamu punya ${ctx.contacts.length} kontak (${onChainCount} terverifikasi on-chain): ${topNames}. Sebutkan nama untuk mengirim, atau ucapkan kembali ke beranda.`;
+    return `Contacts screen. You have ${ctx.contacts.length} verified contacts: ${topNames}. Adding or changing a contact requires hardware biometric approval.`;
   }
 
   if (ctx.transactions.length === 0) {
-    return 'Halaman Riwayat. Belum ada transaksi terkirim.';
+    return 'History screen. No transactions sent yet.';
   }
   const latest = ctx.transactions[0];
-  return `Halaman Riwayat. Ada ${ctx.transactions.length} transaksi. Terakhir: kirim ${formatAmountSpeech(latest.amountUsdc)} ${latest.currency} ke ${latest.recipientName}, status terkonfirmasi.`;
+  return `History screen. ${ctx.transactions.length} transactions recorded. Most recent: sent ${formatAmountSpeech(latest.amountUsdc)} ${latest.currency} to ${latest.recipientName}.`;
 }
 
 const UNPROTECTED_SAFE_ACTIONS = new Set<VoiceAction>(['help', 'repeat']);
 
 /**
- * Evaluates Factor 1 on-device voiceprint verification (Picovoice Eagle model simulation).
- * Safe guidance actions (help/repeat) remain accessible even if speaker check fails.
+ * Evaluates Layer 1 optional on-device voiceprint verification (convenience/privacy only).
+ * Never hardcodes fabricated scores (e.g. 94%). Accepts a real measured score [0..1] when
+ * provided by Picovoice Eagle hardware, or reports uncalibrated simulation status cleanly.
  */
 export function verifySpeakerVoiceprint(
   profile: VoiceprintProfile,
   speakerKind: SpeakerKind,
-  action?: VoiceAction
+  action?: VoiceAction,
+  measuredScore?: number | null
 ): VoiceprintCheckResult {
+  const hasMeasured =
+    typeof measuredScore === 'number' &&
+    Number.isFinite(measuredScore) &&
+    measuredScore >= 0 &&
+    measuredScore <= 1;
+  const normalizedScore = hasMeasured ? measuredScore : null;
+  const normalizedScorePct = hasMeasured ? Math.round(measuredScore * 100) : null;
+
   if (action && UNPROTECTED_SAFE_ACTIONS.has(action)) {
     return {
       verified: true,
       bypassed: true,
-      score: speakerKind === 'owner' ? 0.94 : 0.28,
-      scorePct: speakerKind === 'owner' ? 94 : 28,
+      measured: hasMeasured,
+      score: normalizedScore,
+      scorePct: normalizedScorePct,
       threshold: profile.threshold,
-      speakerLabel: speakerKind === 'owner' ? profile.ownerLabel : 'Suara Tidak Dikenal',
+      speakerLabel: speakerKind === 'owner' ? profile.ownerLabel : 'Unrecognized Speaker',
       haptic: 'tick',
       spokenMessage: null,
     };
@@ -384,28 +487,30 @@ export function verifySpeakerVoiceprint(
     return {
       verified: false,
       bypassed: false,
-      score: 0,
-      scorePct: 0,
+      measured: false,
+      score: null,
+      scorePct: null,
       threshold: profile.threshold,
-      speakerLabel: 'Belum Terdaftar',
+      speakerLabel: 'Not Enrolled',
       haptic: 'error',
       spokenMessage: VOICE_SCRIPTS.voiceprintUnenrolled(),
     };
   }
 
-  const score = speakerKind === 'owner' ? 0.94 : 0.28;
-  const scorePct = Math.round(score * 100);
-  const verified = score >= profile.threshold;
+  const verified = hasMeasured
+    ? measuredScore >= profile.threshold
+    : speakerKind === 'owner';
 
   return {
     verified,
     bypassed: false,
-    score,
-    scorePct,
+    measured: hasMeasured,
+    score: normalizedScore,
+    scorePct: normalizedScorePct,
     threshold: profile.threshold,
-    speakerLabel: verified ? profile.ownerLabel : 'Suara Tidak Dikenal (Impostor)',
+    speakerLabel: verified ? profile.ownerLabel : 'Unrecognized Speaker',
     haptic: verified ? 'tick' : 'error',
-    spokenMessage: verified ? null : VOICE_SCRIPTS.voiceprintBlocked(scorePct),
+    spokenMessage: verified ? null : VOICE_SCRIPTS.voiceprintBlocked(normalizedScorePct),
   };
 }
 
@@ -489,21 +594,33 @@ export function buildScribeKeyterms(contacts: Contact[]): string[] {
     'USDC',
     'SOL',
     'Solana',
-    'dolar',
-    'kirim',
-    'transfer',
     'Bicara',
-    'buka kontak',
-    'buka riwayat',
-    'cek saldo',
-    'beranda',
-    'ulangi',
-    'bantuan',
-    'konfirmasi',
-    'batal',
+    'dollars',
+    'send',
+    'transfer',
+    'swap',
+    'buy',
+    'sell',
+    'quote',
+    'confirm',
+    'yes',
+    'cancel',
+    'stop',
+    'open contacts',
+    'open history',
+    'go home',
+    'check balance',
+    'check price',
+    'read portfolio',
+    'read contacts',
+    'read history',
+    'repeat',
+    'help',
   ];
-  const names = contacts.map((c) => c.name.trim()).filter(Boolean);
-  return Array.from(new Set([...baseTerms, ...names])).slice(0, 100);
+  const names = contacts
+    .map((c) => c.name.trim().replace(/\s+/g, ' '))
+    .filter((name) => name.length > 0 && name.length <= 50 && name.split(' ').length <= 5);
+  return Array.from(new Set([...baseTerms, ...names])).slice(0, 1000);
 }
 
 const WORD_NUMBERS: Record<string, number> = {
@@ -702,12 +819,105 @@ export function parseIntentFallback(transcript: string): PaymentIntent {
     return emptyNavIntent('help');
   }
 
-  // 3. Balance Readout
-  if (/\b(saldo|balance)\b/.test(lower) && !SEND_VERBS_REGEX.test(lower)) {
+  // 3. Price Readout (check_price)
+  if (
+    /\b(check price|sol price|solana price|price of sol|price of solana|cek harga|harga sol)\b/.test(
+      lower
+    ) &&
+    !/\b(swap|convert|trade|exchange)\b/.test(lower)
+  ) {
+    return {
+      ...emptyNavIntent('check_price'),
+      currency: CURRENCY_SOL_REGEX.test(lower) ? 'SOL' : 'SOL',
+    };
+  }
+
+  // 4. Verified Swap Quote (swap_quote)
+  if (/\b(swap|convert|trade|exchange|buy|sell|quote)\b/.test(lower)) {
+    const swapDirection: 'buy' | 'sell' = /\bbuy\b/.test(lower) ? 'buy' : 'sell';
+
+    let swapAmount: number | null = null;
+    let swapRawAmountText: string | null = null;
+    const swapNumMatch = clean.match(/(\d+(?:[.,]\d+)?)/);
+    if (swapNumMatch) {
+      const parsed = parseSpokenNumber(swapNumMatch[1]);
+      if (parsed !== null) {
+        swapAmount = parsed;
+        swapRawAmountText = swapNumMatch[1];
+      }
+    } else {
+      const words = clean.replace(/[?!.,]/g, ' ').split(/\s+/);
+      const numSeq: string[] = [];
+      for (const w of words) {
+        const wLower = w.toLowerCase();
+        if (NUMBER_WORDS_SET.has(wLower)) {
+          numSeq.push(wLower);
+        } else if (numSeq.length > 0) {
+          break;
+        }
+      }
+      if (numSeq.length > 0) {
+        const parsed = parseSpokenNumber(numSeq.join(' '));
+        if (parsed !== null) {
+          swapAmount = parsed;
+          swapRawAmountText = numSeq.join(' ');
+        }
+      }
+    }
+
+    const normalizeTokenSymbol = (raw: string): string => {
+      const upper = raw.trim().toUpperCase();
+      if (upper === 'SOLANA') return 'SOL';
+      if (upper === 'USD' || upper === 'DOLLAR' || upper === 'DOLLARS') return 'USDC';
+      return upper;
+    };
+
+    let inputCurrency: string | null = null;
+    let outputCurrency: string | null = null;
+
+    // Match explicit "swap [amount] <IN> to/for/into <OUT>" (preserving unknown token names)
+    const pairMatch = clean.match(
+      /\b(?:swap|convert|trade|exchange|sell|quote)\s+(?:all\s+(?:my\s+)?)?(?:[\d.,]+\s+|(?:[a-z]+\s+){0,2}?)?(?:of\s+)?([a-zA-Z0-9]+)\s+(?:to|for|into)\s+(?:unknown\s+token\s+|token\s+)?([a-zA-Z0-9]+)/i
+    );
+    if (pairMatch) {
+      inputCurrency = normalizeTokenSymbol(pairMatch[1]);
+      outputCurrency = normalizeTokenSymbol(pairMatch[2]);
+    } else if (swapDirection === 'buy') {
+      const buyMatch = clean.match(
+        /\bbuy\s+(?:[\d.,]+\s+)?([a-zA-Z0-9]+)(?:\s+(?:with|using|for)\s+(?:[\d.,]+\s+)?([a-zA-Z0-9]+))?/i
+      );
+      if (buyMatch) {
+        outputCurrency = normalizeTokenSymbol(buyMatch[1]);
+        inputCurrency = buyMatch[2] ? normalizeTokenSymbol(buyMatch[2]) : 'USDC';
+      }
+    }
+
+    if (!inputCurrency) {
+      inputCurrency = /\busdc\b/i.test(clean) ? 'USDC' : CURRENCY_SOL_REGEX.test(clean) ? 'SOL' : 'USDC';
+    }
+    if (!outputCurrency) {
+      outputCurrency = inputCurrency === 'USDC' ? 'SOL' : 'USDC';
+    }
+
+    return {
+      action: 'swap_quote',
+      targetTab: null,
+      amount: swapAmount,
+      currency: inputCurrency,
+      swapDirection,
+      outputCurrency,
+      recipient: null,
+      confidence: swapAmount !== null && inputCurrency && outputCurrency ? 'high' : 'low',
+      raw_amount_text: swapRawAmountText,
+    };
+  }
+
+  // 5. Balance Readout
+  if (/\b(saldo|balance|portfolio)\b/.test(lower) && !SEND_VERBS_REGEX.test(lower)) {
     return emptyNavIntent('check_balance');
   }
 
-  // 4. List Contacts / Navigate to Contacts
+  // 6. List Contacts / Navigate to Contacts
   if (/\b(baca kontak|daftar kontak|siapa saja kontak|siapa kontak|list contacts|read contacts)\b/.test(lower)) {
     return emptyNavIntent('list_contacts', 'contacts');
   }
@@ -715,7 +925,7 @@ export function parseIntentFallback(transcript: string): PaymentIntent {
     return emptyNavIntent('navigate', 'contacts');
   }
 
-  // 5. Read History / Navigate to History
+  // 7. Read History / Navigate to History
   if (/\b(baca riwayat|transaksi terakhir|riwayat terakhir|read history|last transaction)\b/.test(lower)) {
     return emptyNavIntent('read_history', 'history');
   }
@@ -723,12 +933,12 @@ export function parseIntentFallback(transcript: string): PaymentIntent {
     return emptyNavIntent('navigate', 'history');
   }
 
-  // 6. Navigate Home
-  if (/\b(beranda|home|halaman utama|menu utama)\b/.test(lower) && !SEND_VERBS_REGEX.test(lower)) {
+  // 8. Navigate Home
+  if (/\b(beranda|home|go home|halaman utama|menu utama)\b/.test(lower) && !SEND_VERBS_REGEX.test(lower)) {
     return emptyNavIntent('navigate', 'home');
   }
 
-  // 7. Payment Send Intent
+  // 9. Payment Send Intent
   if (!SEND_VERBS_REGEX.test(clean)) {
     return emptyNavIntent('unknown');
   }
@@ -841,6 +1051,21 @@ export function validateIntent(intent: PaymentIntent): IntentValidation {
     };
   }
 
+  if (intent.action === 'swap_quote') {
+    if (intent.amount === null || intent.amount <= 0) {
+      return {
+        valid: false,
+        missingField: 'amount',
+        promptText: 'How much would you like to quote for the swap?',
+      };
+    }
+    return {
+      valid: true,
+      missingField: null,
+      promptText: null,
+    };
+  }
+
   if (intent.action !== 'send') {
     return {
       valid: true,
@@ -855,7 +1080,7 @@ export function validateIntent(intent: PaymentIntent): IntentValidation {
       missingField: 'amount',
       promptText: intent.recipient
         ? VOICE_SCRIPTS.askAmount(intent.recipient)
-        : 'Berapa yang ingin dikirim?',
+        : 'How much would you like to send?',
     };
   }
 
@@ -946,7 +1171,7 @@ export function executeSimulatedTransfer(
     return {
       ok: false,
       errorCode: 'UNCONFIRMED',
-      spokenMessage: 'Transaksi memerlukan konfirmasi eksplisit terlebih dahulu.',
+      spokenMessage: 'Explicit confirmation is required before signing.',
       nextSenderBalance: input.senderBalanceUsdc,
     };
   }
@@ -955,7 +1180,7 @@ export function executeSimulatedTransfer(
     return {
       ok: false,
       errorCode: 'INVALID_AMOUNT',
-      spokenMessage: 'Jumlah pengiriman tidak valid.',
+      spokenMessage: 'Transfer amount must be greater than zero.',
       nextSenderBalance: input.senderBalanceUsdc,
     };
   }
@@ -976,7 +1201,7 @@ export function executeSimulatedTransfer(
     return {
       ok: false,
       errorCode: 'MISSING_ATA',
-      spokenMessage: `${input.recipient.name} belum punya USDC wallet (ATA). Aktifkan pembuatan ATA otomatis untuk melanjutkan.`,
+      spokenMessage: VOICE_SCRIPTS.missingAta(input.recipient.name),
       nextSenderBalance: input.senderBalanceUsdc,
     };
   }

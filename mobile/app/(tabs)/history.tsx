@@ -1,16 +1,13 @@
 import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { EN_UI_COPY } from '../../src/i18n/en';
 
 export default function HistoryStep1Screen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        <Text style={styles.kicker}>Step 3 Target · Solana Devnet Signatures</Text>
-        <Text style={styles.title}>Riwayat Transaksi USDC</Text>
-        <Text style={styles.body}>
-          Setiap pengiriman USDC yang dikonfirmasi lewat Phantom/Solflare MWA akan
-          tercatat di sini bersama tautan Solana Explorer Devnet dan dapat dibacakan
-          ulang dengan perintah suara &ldquo;Buka riwayat&rdquo;.
-        </Text>
+        <Text style={styles.kicker}>{EN_UI_COPY.history.kicker}</Text>
+        <Text style={styles.title}>{EN_UI_COPY.history.title}</Text>
+        <Text style={styles.body}>{EN_UI_COPY.history.body}</Text>
       </View>
     </SafeAreaView>
   );

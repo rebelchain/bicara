@@ -6,6 +6,7 @@ import {
   useAudioRecorder,
 } from 'expo-audio';
 import { triggerHaptic } from '../services/haptics';
+import { EN_UI_COPY } from '../i18n/en';
 
 export interface VoiceRecorderState {
   isRecording: boolean;
@@ -30,7 +31,7 @@ export function useVoiceRecorder(): VoiceRecorderState {
     try {
       const perm = await AudioModule.requestRecordingPermissionsAsync();
       if (!perm.granted) {
-        setError('Izin mikrofon ditolak. Aktifkan izin mikrofon Bicara di pengaturan Android.');
+        setError(EN_UI_COPY.recorder.permissionDenied);
         await triggerHaptic('error');
         return false;
       }
@@ -46,7 +47,7 @@ export function useVoiceRecorder(): VoiceRecorderState {
       await triggerHaptic('listen');
       return true;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Gagal memulai rekaman audio.';
+      const message = err instanceof Error ? err.message : EN_UI_COPY.recorder.startFailed;
       setError(message);
       await triggerHaptic('error');
       return false;
@@ -67,7 +68,7 @@ export function useVoiceRecorder(): VoiceRecorderState {
       return uri;
     } catch (err) {
       setIsRecording(false);
-      setError(err instanceof Error ? err.message : 'Gagal menghentikan rekaman audio.');
+      setError(err instanceof Error ? err.message : EN_UI_COPY.recorder.stopFailed);
       return null;
     }
   }, [recorder]);

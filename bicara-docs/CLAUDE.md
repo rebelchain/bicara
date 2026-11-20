@@ -8,11 +8,11 @@
 
 ## What Bicara Is
 
-Bicara *(a fun fact: the name means "speak" in Bahasa Indonesia)* is a **global accessibility layer for on-chain payments and verified token swaps**, built for **blind and low-vision users worldwide**. The Solana Mobile Android app is the reference implementation of that layer.
+Bicara *(a fun fact: the name means "speak" in Bahasa Indonesia)* is a **spoken transaction verification and accessibility layer (`accessible-signing`) for Solana** — before you sign anything on Solana, Bicara reads aloud exactly what the transaction will actually do, **built blind-first so if it works with zero screen, it works for everyone**. The Solana Mobile Android app is the reference implementation of that layer.
 
-Blind and low-vision users face two fundamental barriers in self-custodial crypto:
-1. They cannot visually verify a 44-character Base58 wallet address.
-2. They cannot read a wallet's signing popup (or DEX swap breakdown) to know what a transaction will actually do before approving it.
+Blind signing is a universal self-custodial crypto problem (approval phishing alone stole **$516.8 million** in 2022 per Chainalysis), and blind and low-vision users are its most extreme proof case. Two core moments break whenever visual inspection fails:
+1. Verifying a 44-character Base58 wallet address to be sure funds go to the right person.
+2. Understanding a wallet signing popup (or DEX swap breakdown) before approving it.
 
 Bicara solves both through a reusable module (**`accessible-signing`**): saved names resolve to owner-verified addresses, and the app **speaks what the transaction will actually do** (including runtime-computed fees, rent, slippage, price impact, and anomaly warnings) before the user authorizes it with hardware biometrics.
 

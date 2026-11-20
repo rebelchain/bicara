@@ -25,15 +25,15 @@ export default function ArchitectureWorkspace() {
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-[#22272D]">
         <div className="space-y-2 max-w-2xl">
           <p className="text-xs font-medium text-[#94A3B8]">
-            Verified against official docs · November 2026 · 7 SDK boundaries audited
+            accessible-signing Architecture · Verified 2026 SDK Matrix · Voice Identifies, Hardware Authorizes
           </p>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#F8FAFC] [text-wrap:balance]">
-            2026 SDK Migration &amp; Architecture Blueprint
+            accessible-signing &amp; 2026 SDK Architecture Blueprint
           </h1>
           <p className="text-sm sm:text-[15px] text-[#94A3B8] leading-relaxed">
-            Every outdated package or breaking change from the draft specs has been verified against
-            Solana Mobile, Picovoice Eagle Voiceprint, Expo Audio, Anchor AVM, Solana Program Token,
-            and ElevenLabs Scribe v2.
+            Reusable spoken transaction verification architecture verified against Solana Mobile MWA 2.0,
+            @solana/kit, ElevenLabs Scribe v2 &amp; Flash v2.5, Jupiter Swap V2 (Quote-Only), Expo Audio,
+            optional Picovoice Eagle, and Anchor ContactRegistry PDA.
           </p>
         </div>
 

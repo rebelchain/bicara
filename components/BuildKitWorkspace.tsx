@@ -81,7 +81,7 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
         fetch('/api/intent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transcript: 'Kirim 5 dolar ke Ahmad', mode: 'fallback' }),
+          body: JSON.stringify({ transcript: 'Send 5 USDC to Ahmad', mode: 'fallback' }),
         }),
       ]);
       if (!healthRes.ok) {
@@ -139,15 +139,16 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-[#22272D]">
         <div className="space-y-2 max-w-2xl">
           <p className="text-xs font-medium text-[#94A3B8]">
-            Step 1 Complete · Physical Android Phone via USB · Track A (@solana/kit) · Zero Emulator Overhead
+            Gate A Hardware Validation · Physical Android USB · Track A (@solana/kit) · English Locale Dictionary
           </p>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#F8FAFC] [text-wrap:balance]">
-            Step 1 Mobile Build Kit &amp; Voice Proxy Diagnostics
+            Android Mobile Build Kit &amp; Server Proxy Diagnostics
           </h1>
           <p className="text-sm sm:text-[15px] text-[#94A3B8] leading-relaxed">
-            Real Expo Custom Dev Build scaffold in <span className="font-mono text-[#E2E8F0]">/mobile</span>{' '}
-            ready for physical Android USB testing with JDK 17 + Android SDK, real{' '}
-            <span className="font-mono text-[#E2E8F0]">expo-haptics</span>, and server-side ElevenLabs + Gemini proxies.
+            Reference Android Custom Dev Build in <span className="font-mono text-[#E2E8F0]">/mobile</span>{' '}
+            for the <span className="font-mono text-[#E2E8F0]">accessible-signing</span> layer, paired with
+            physical <span className="font-mono text-[#E2E8F0]">expo-haptics</span> and server-side ElevenLabs,
+            Gemini, and Quote-Only Jupiter proxies.
           </p>
         </div>
 
@@ -322,7 +323,7 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
                 },
                 {
                   route: 'POST /api/stt',
-                  role: 'ElevenLabs scribe_v2 with Indonesian keyterms',
+                  role: 'ElevenLabs scribe_v2 with dynamic English keyterms (up to 1,000)',
                   ready: healthResult ? healthResult.env.elevenLabsConfigured : null,
                   note: healthResult
                     ? healthResult.env.elevenLabsConfigured

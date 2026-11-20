@@ -10,6 +10,7 @@ export async function GET() {
   const geminiConfigured = isConfigured(process.env.GEMINI_API_KEY);
   const elevenLabsConfigured = isConfigured(process.env.ELEVENLABS_API_KEY);
   const voiceIdConfigured = isConfigured(process.env.ELEVENLABS_VOICE_ID);
+  const jupiterConfigured = isConfigured(process.env.JUPITER_API_KEY);
 
   return NextResponse.json({
     ok: true,
@@ -19,13 +20,21 @@ export async function GET() {
       geminiConfigured,
       elevenLabsConfigured,
       voiceIdConfigured,
+      jupiterConfigured,
     },
     models: {
       stt: 'scribe_v2',
       nlu: 'gemini-4-hydrogen',
       tts: 'eleven_flash_v2_5',
     },
-    endpoints: ['/api/health', '/api/stt', '/api/intent', '/api/tts'],
+    endpoints: [
+      '/api/health',
+      '/api/stt',
+      '/api/intent',
+      '/api/tts',
+      '/api/swap/quote',
+      '/api/prices',
+    ],
     usbSetup: {
       adbReverseCmd: 'adb reverse tcp:3000 tcp:3000',
       mobileBaseUrl: 'http://localhost:3000',

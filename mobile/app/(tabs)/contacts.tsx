@@ -1,16 +1,13 @@
 import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { EN_UI_COPY } from '../../src/i18n/en';
 
 export default function ContactsStep1Screen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        <Text style={styles.kicker}>Step 2 Target · Supabase + Step 4 Anchor PDA</Text>
-        <Text style={styles.title}>Daftar Kontak Penerima</Text>
-        <Text style={styles.body}>
-          Tab ini sudah tersambung dengan Spoken Navigation dan getar Soft Tick.
-          Pada Step 2 kita sambungkan tabel Supabase untuk menyimpan nama panggilan dan
-          alamat wallet Solana, lalu di Step 4 dual-write ke Anchor ContactRegistry PDA.
-        </Text>
+        <Text style={styles.kicker}>{EN_UI_COPY.contacts.kicker}</Text>
+        <Text style={styles.title}>{EN_UI_COPY.contacts.title}</Text>
+        <Text style={styles.body}>{EN_UI_COPY.contacts.body}</Text>
       </View>
     </SafeAreaView>
   );

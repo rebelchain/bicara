@@ -3,10 +3,10 @@ import * as Speech from 'expo-speech';
 import { triggerHaptic, type HapticPatternId } from './haptics';
 
 /**
- * Zero-Silent-Screen speech announcer for visually impaired users.
- * Always announces to Android TalkBack and speaks immediately in Bahasa Indonesia.
- * In Step 3, this seamlessly upgrades to ElevenLabs eleven_flash_v2_5 via /api/tts
- * with automatic offline fallback to expo-speech so blind users never hit silence.
+ * Zero-Silent-Screen speech announcer for eyes-free verification.
+ * Always announces to Android TalkBack and speaks immediately in English (`en-US`).
+ * Upgrades seamlessly to ElevenLabs eleven_flash_v2_5 via /api/tts with automatic
+ * offline fallback to expo-speech so users never hit silence.
  */
 export async function speakEyesFree(
   text: string,
@@ -28,7 +28,7 @@ export async function speakEyesFree(
   try {
     await Speech.stop();
     Speech.speak(cleaned, {
-      language: 'id-ID',
+      language: 'en-US',
       rate: 0.96,
       pitch: 1.0,
     });

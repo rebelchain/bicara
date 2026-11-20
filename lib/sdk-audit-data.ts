@@ -333,15 +333,15 @@ export const DEMO_SCRIPT_STEPS: DemoStep[] = [
     secondMark: '00–06s',
     action: 'Hold up Phone A (Bicara) & Phone B (Ahmad wallet)',
     spokenLine:
-      '"285 juta penyandang tunanetra tidak bisa menyalin alamat wallet 44 karakter. Ini Bicara."',
-    judgeSignal: 'Instant emotional hook: real human accessibility barrier solved natively on Solana Mobile.',
+      '"Approval phishing stole $516.8M in 2022 from blind signing — built blind-first so if it works with zero screen, it works for everyone."',
+    judgeSignal: 'Universal anti-blind-signing hook proven by the hardest zero-screen accessibility case.',
   },
   {
     step: 2,
     secondMark: '06–12s',
-    action: 'Turn ON Screen Curtain (layar gelap!) → Tap anywhere → "Cek saldo"',
-    spokenLine: 'App speaks (~100ms): "Saldo kamu 25 USDC." (Voiceprint User A: 94% verified)',
-    judgeSignal: 'Proves zero-vision usability + on-device Voiceprint owner verification.',
+    action: 'Tap anywhere in Eyes-Free Mode → Say: "Check balance"',
+    spokenLine: 'App speaks via eleven_flash_v2_5: "Your Devnet balance is [live] USDC and [live] SOL."',
+    judgeSignal: 'Proves zero-silent-screen eyes-free readout without hardcoded demo scores.',
   },
   {
     step: 3,

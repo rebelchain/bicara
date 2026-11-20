@@ -1,3 +1,5 @@
+import { EN_UI_COPY } from '../i18n/en';
+
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 
@@ -9,6 +11,7 @@ export interface ProxyHealthResponse {
     geminiConfigured: boolean;
     elevenLabsConfigured: boolean;
     voiceIdConfigured: boolean;
+    jupiterConfigured?: boolean;
   };
   models: {
     stt: string;
@@ -21,7 +24,9 @@ export interface ProxyHealthResponse {
 export async function checkVoiceProxyHealth(): Promise<ProxyHealthResponse> {
   const res = await fetch(`${API_BASE_URL}/api/health`);
   if (!res.ok) {
-    throw new Error(`Proxy health failed (${res.status}). Pastikan adb reverse tcp:3000 tcp:3000 aktif.`);
+    throw new Error(
+      `${EN_UI_COPY.api.healthFailedPrefix} (${res.status}). ${EN_UI_COPY.api.healthFailedHint}`
+    );
   }
   return (await res.json()) as ProxyHealthResponse;
 }
@@ -31,7 +36,7 @@ export async function transcribeVoiceRecording(
   keyterms: string[]
 ): Promise<{ transcript: string; latencyMs: number }> {
   const form = new FormData();
-  form.append('language_code', 'ind');
+  form.append('language_code', 'eng');
   form.append('keyterms', JSON.stringify(keyterms));
   form.append('audio', {
     uri: fileUri,

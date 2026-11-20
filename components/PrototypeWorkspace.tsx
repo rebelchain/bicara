@@ -94,15 +94,15 @@ interface PrototypeWorkspaceProps {
 }
 
 const DEMO_UTTERANCES = [
-  { label: 'Nav: Cek Saldo', text: 'Cek saldo' },
-  { label: 'Nav: Buka Kontak', text: 'Buka kontak' },
-  { label: 'Nav: Buka Riwayat', text: 'Buka riwayat' },
-  { label: 'Nav: Bantuan', text: 'Bantuan' },
-  { label: 'Pay: Happy Path', text: 'Kirim 5 dolar ke Ahmad' },
-  { label: 'Voice Confirm', text: 'Ya' },
-  { label: 'Pay: Spoken Words', text: 'Transfer dua puluh USDC ke Budi' },
-  { label: 'Edge: Missing ATA', text: 'Kirim 5 dolar ke Raka' },
-  { label: 'Edge: Not Found', text: 'Kirim 5 dolar ke Reza' },
+  { label: 'Nav: Check Balance', text: 'Check balance' },
+  { label: 'Nav: Open Contacts', text: 'Open contacts' },
+  { label: 'Nav: Open History', text: 'Open history' },
+  { label: 'Nav: Help', text: 'Help' },
+  { label: 'Pay: Happy Path', text: 'Send 5 USDC to Ahmad' },
+  { label: 'Voice Confirm', text: 'Yes' },
+  { label: 'Pay: Spoken Words', text: 'Send twenty USDC to Budi' },
+  { label: 'Edge: Missing ATA', text: 'Send 5 USDC to Raka' },
+  { label: 'Edge: Not Found', text: 'Send 5 USDC to Reza' },
 ];
 
 const WAVEFORM_HEIGHTS = [0.3, 0.7, 0.45, 0.95, 0.6, 1, 0.5, 0.85, 0.4, 0.9, 0.55, 0.75];
@@ -156,7 +156,7 @@ export default function PrototypeWorkspace({
   const [lastInstruction, setLastInstruction] = useState<TransferInstructionSummary | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [spokenLine, setSpokenLine] = useState<string | null>(
-    `Halaman Beranda. Saldo kamu ${senderBalanceUsdc.toFixed(2)} USDC. Sentuh layar di mana saja lalu bicara.`
+    `Home screen. Your balance is ${senderBalanceUsdc.toFixed(2)} USDC and ${senderBalanceSol.toFixed(3)} SOL. Tap anywhere to speak.`
   );
   const [missingContactName, setMissingContactName] = useState<string | null>(null);
   const [prefillContactName, setPrefillContactName] = useState<string | null>(null);
@@ -188,7 +188,7 @@ export default function PrototypeWorkspace({
       try {
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'id-ID';
+        utterance.lang = 'en-US';
         utterance.rate = 0.98;
         window.speechSynthesis.speak(utterance);
       } catch {
@@ -232,7 +232,7 @@ export default function PrototypeWorkspace({
       senderBalanceUsdc,
       recipient: pendingTransfer.recipient,
       amount: pendingTransfer.intent.amount ?? 0,
-      currency: pendingTransfer.intent.currency ?? 'USDC',
+      currency: pendingTransfer.intent.currency === 'SOL' ? 'SOL' : 'USDC',
       voiceTranscript: pendingTransfer.transcript,
       resolutionSource: pendingTransfer.resolutionSource,
       autoCreateAta,
@@ -543,7 +543,7 @@ export default function PrototypeWorkspace({
   useEffect(() => {
     if (demoTriggerNonce !== lastHandledDemoRef.current) {
       lastHandledDemoRef.current = demoTriggerNonce;
-      void processTranscript('Kirim 5 dolar ke Ahmad');
+      void processTranscript('Send 5 USDC to Ahmad');
     }
   }, [demoTriggerNonce, processTranscript]);
 
@@ -575,16 +575,16 @@ export default function PrototypeWorkspace({
 
     if (!SpeechCtor) {
       setVoiceStage('recording');
-      setStatusMessage('Browser Speech API tidak tersedia — mensimulasikan audio demo...');
+      setStatusMessage('Browser Speech API unavailable — simulating demo utterance...');
       setTimeout(() => {
-        void processTranscript(pendingTransfer ? 'Ya' : 'Kirim 5 dolar ke Ahmad');
+        void processTranscript(pendingTransfer ? 'Yes' : 'Send 5 USDC to Ahmad');
       }, 600);
       return;
     }
 
     try {
       const rec = new SpeechCtor();
-      rec.lang = 'id-ID';
+      rec.lang = 'en-US';
       rec.interimResults = false;
       rec.maxAlternatives = 1;
 
@@ -595,7 +595,7 @@ export default function PrototypeWorkspace({
         } else {
           setVoiceStage('error');
           setLastHaptic('error');
-          setStatusMessage('Suara tidak terdeteksi. Coba lagi atau pilih contoh perintah.');
+          setStatusMessage('No speech detected. Try again or pick a sample command.');
         }
       };
 
@@ -603,7 +603,7 @@ export default function PrototypeWorkspace({
         setVoiceStage('error');
         setLastHaptic('error');
         setStatusMessage(
-          'Akses mikrofon diblokir atau tidak tersedia. Gunakan input teks atau contoh perintah di kanan.'
+          'Microphone access blocked or unavailable. Use the text input or sample commands on the right.'
         );
       };
 
@@ -613,12 +613,12 @@ export default function PrototypeWorkspace({
 
       recognitionRef.current = rec;
       setVoiceStage('recording');
-      setStatusMessage('Bicara sekarang... contoh: "Cek saldo" atau "Kirim 5 dolar ke Ahmad"');
+      setStatusMessage('Speak now... e.g. "Check balance" or "Send 5 USDC to Ahmad"');
       rec.start();
     } catch {
       setVoiceStage('error');
       setLastHaptic('error');
-      setStatusMessage('Gagal memulai mikrofon browser. Gunakan contoh perintah di samping.');
+      setStatusMessage('Failed to start browser microphone. Use the sample commands on the right.');
     }
   };
 
@@ -640,14 +640,14 @@ export default function PrototypeWorkspace({
   const pipelineSteps = [
     {
       num: '00',
-      title: 'On-Device Voiceprint Gate (Eagle)',
+      title: 'Optional Voiceprint Gate (Layer 1 — Convenience Only)',
       detail: lastVoiceprintResult
         ? lastVoiceprintResult.bypassed
           ? 'Safe action bypass · accessibility open'
           : lastVoiceprintResult.verified
-            ? `${lastVoiceprintResult.speakerLabel} · ${lastVoiceprintResult.scorePct}% match (≥75%)`
-            : `BLOCKED · ${lastVoiceprintResult.scorePct}% < 75% threshold`
-        : `${activeSpeaker === 'owner' ? voiceprintProfile.ownerLabel : 'Impostor B (Asing)'} · threshold 75%`,
+            ? `${lastVoiceprintResult.speakerLabel} · ${lastVoiceprintResult.scorePct !== null ? `${lastVoiceprintResult.scorePct}% measured` : 'Uncalibrated (sim)'}`
+            : `BLOCKED · ${lastVoiceprintResult.scorePct !== null ? `${lastVoiceprintResult.scorePct}% below threshold` : 'Unrecognized speaker (sim)'}`
+        : `${activeSpeaker === 'owner' ? voiceprintProfile.ownerLabel : 'Unrecognized Speaker'} · pending Gate A calibration`,
       done: Boolean(lastVoiceprintResult?.verified),
       blocked: vpBlocked,
       active: false,
@@ -725,10 +725,10 @@ export default function PrototypeWorkspace({
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 pb-4 border-b border-[#22272D]">
         <div className="space-y-1.5 max-w-2xl">
           <p className="text-xs font-medium text-[#94A3B8]">
-            Eyes-Free Blind Accessibility · On-Device Voiceprint + MWA Seed Vault · Solana Devnet
+            accessible-signing Layer · Built Blind-First for Everyone · Voice Identifies, Hardware Authorizes
           </p>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#F8FAFC] [text-wrap:balance]">
-            Full-Voice Eyes-Free USDC Wallet on Solana Mobile
+            Spoken Transaction Verification Layer on Solana
           </h1>
         </div>
 
@@ -832,7 +832,7 @@ export default function PrototypeWorkspace({
                   : 'text-[#94A3B8] hover:text-[#F8FAFC]'
               }`}
             >
-              User A (Pemilik · 94%)
+              User A (Owner · Sim)
             </button>
             <button
               type="button"
@@ -847,7 +847,7 @@ export default function PrototypeWorkspace({
                   : 'text-[#94A3B8] hover:text-[#F8FAFC]'
               }`}
             >
-              Impostor B (Asing · 28%)
+              Impostor B (Unrecognized · Sim)
             </button>
           </div>
         </div>
@@ -1054,12 +1054,12 @@ export default function PrototypeWorkspace({
                     ) : transcript ? (
                       <div className="w-full p-2.5 bg-[#14171A] border border-[#22272D] rounded-xl text-center space-y-1">
                         <div className="text-[10px] font-mono text-[#64748B]">
-                          Transkrip scribe_v2 ·{' '}
+                          scribe_v2 Transcript ·{' '}
                           {lastVoiceprintResult
                             ? lastVoiceprintResult.verified
-                              ? `Voiceprint ${lastVoiceprintResult.scorePct}% ✓`
-                              : `Voiceprint ${lastVoiceprintResult.scorePct}% BLOCKED`
-                            : 'Menunggu'}
+                              ? `Voiceprint ${lastVoiceprintResult.scorePct !== null ? `${lastVoiceprintResult.scorePct}%` : 'Sim'} ✓`
+                              : `Voiceprint ${lastVoiceprintResult.scorePct !== null ? `${lastVoiceprintResult.scorePct}%` : 'Sim'} BLOCKED`
+                            : 'Idle'}
                         </div>
                         <p className="text-sm font-medium text-[#F8FAFC]">
                           &ldquo;{transcript}&rdquo;
@@ -1068,8 +1068,8 @@ export default function PrototypeWorkspace({
                     ) : (
                       <p className="text-xs text-[#64748B] text-center max-w-[260px] leading-relaxed">
                         {eyesFreeMode
-                          ? 'Mode Eyes-Free: sentuh layar di mana saja lalu ucapkan "Cek saldo", "Buka kontak", atau "Kirim 5 dolar ke Ahmad".'
-                          : 'Tekan mikrofon lalu ucapkan jumlah dan nama penerima. Contoh: "Kirim 5 dolar ke Ahmad".'}
+                          ? 'Eyes-Free Mode: tap anywhere and say "Check balance", "Open contacts", or "Send 5 USDC to Ahmad".'
+                          : 'Tap the microphone and say the amount and recipient, e.g. "Send 5 USDC to Ahmad".'}
                       </p>
                     )}
 
@@ -1182,7 +1182,7 @@ export default function PrototypeWorkspace({
                   onAddContact={onAddContact}
                   onDeleteContact={onDeleteContact}
                   onSelectForQuickSend={(name) => {
-                    void processTranscript(`Kirim 5 dolar ke ${name}`);
+                    void processTranscript(`Send 5 USDC to ${name}`);
                   }}
                   prefillName={prefillContactName}
                   onClearPrefill={() => setPrefillContactName(null)}
@@ -1642,7 +1642,7 @@ export default function PrototypeWorkspace({
                       ? JSON.stringify(
                           {
                             voiceprint: lastVoiceprintResult
-                              ? `${lastVoiceprintResult.speakerLabel} (${lastVoiceprintResult.scorePct}%)`
+                              ? `${lastVoiceprintResult.speakerLabel} (${lastVoiceprintResult.scorePct !== null ? `${lastVoiceprintResult.scorePct}%` : 'uncalibrated'})`
                               : voiceprintProfile.ownerLabel,
                             haptic: activeHapticInfo?.pattern ?? null,
                             instruction: lastInstruction.program,

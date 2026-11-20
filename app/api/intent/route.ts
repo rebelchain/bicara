@@ -8,33 +8,39 @@ import {
 } from '@/lib/bicara-engine';
 
 const INTENT_SYSTEM_INSTRUCTION = `
-You are the unified voice command and payment intent parser for Bicara, an eyes-free Solana Mobile USDC wallet for visually impaired users and informal traders.
-Users speak Indonesian, English, or mixed code-switching.
+You are the unified English-first voice command and intent parser for Bicara, a spoken transaction verification and accessibility layer (accessible-signing) on Solana.
+Users primarily speak English (and may occasionally use Indonesian phrases).
 Return ONLY valid JSON matching the schema.
 
 Supported actions:
-- "send": transfer/pay USDC or SOL to a recipient ("kirim 5 dolar ke Ahmad", "transfer dua puluh USDC ke Budi")
-- "navigate": switch tabs ("buka kontak" -> targetTab: "contacts", "buka riwayat" -> targetTab: "history", "kembali ke beranda" -> targetTab: "home")
-- "check_balance": ask current wallet balance ("cek saldo", "berapa saldo saya")
-- "list_contacts": read saved contacts aloud ("baca kontak", "daftar kontak") -> targetTab: "contacts"
-- "read_history": read recent transaction history ("baca riwayat", "transaksi terakhir") -> targetTab: "history"
-- "confirm": explicit confirmation ("ya", "konfirmasi", "setuju", "lanjut")
-- "cancel": cancel current confirmation ("batal", "jangan", "cancel")
-- "repeat": repeat last spoken announcement ("ulangi", "baca ulang")
-- "help": ask for available voice commands ("bantuan", "panduan", "menu suara")
-- "unknown": non-app chitchat ("cuaca hari ini bagaimana?")
+- "send": transfer/pay USDC or SOL to a recipient ("send 5 USDC to Ahmad", "pay 20 dollars to Budi")
+- "swap_quote": request a Quote-Only token swap ("swap 10 USDC to SOL", "buy SOL with 10 USDC", "swap all my USDC to unknown token XYZ")
+- "check_price": ask current token price ("check price", "what is SOL price", "SOL price")
+- "navigate": switch screens ("open contacts" -> targetTab: "contacts", "open history" -> targetTab: "history", "go home" -> targetTab: "home")
+- "check_balance": ask current wallet balance ("check balance", "read portfolio")
+- "list_contacts": read saved contacts aloud ("read contacts", "list contacts") -> targetTab: "contacts"
+- "read_history": read recent transaction history ("read history", "last transaction") -> targetTab: "history"
+- "confirm": explicit confirmation ("yes", "confirm", "continue")
+- "cancel": cancel current confirmation ("cancel", "stop", "no")
+- "repeat": repeat last spoken announcement ("repeat", "say that again")
+- "help": ask for available voice commands ("help", "what can I say")
+- "unknown": non-app chitchat ("how is the weather today?")
 
-Payment rules:
-- "dolar", "dollar", "USD", "$", "bucks", "usdc" => currency: "USDC"
-- "SOL", "solana" => currency: "SOL"
+Token & parsing rules:
+- "dollar", "dollars", "USD", "$", "bucks", "usdc" => "USDC"
+- "SOL", "solana" => "SOL"
+- IMPORTANT for swap_quote: preserve any unknown or unverified token symbol verbatim (e.g. "XYZ", "SCAM") in currency or outputCurrency so Layer 3 allowlist policy can narrate and block it.
+- For swap_quote, set swapDirection to "buy" when user says "buy <token>", otherwise "sell".
 - Default currency for send commands => "USDC"
-- Parse Indonesian and English spoken numbers ("lima" => 5, "dua puluh" => 20, "dua setengah" => 2.5)
-- Capitalize recipient name cleanly ("ahmad" => "Ahmad")
+- Parse spoken numbers ("five" => 5, "twenty" => 20, "two and a half" => 2.5)
+- Capitalize recipient names cleanly ("ahmad" => "Ahmad")
 - If send is missing amount or recipient => confidence: "low"
 `.trim();
 
 const VALID_ACTIONS = new Set<VoiceAction>([
   'send',
+  'swap_quote',
+  'check_price',
   'navigate',
   'check_balance',
   'list_contacts',
@@ -113,6 +119,8 @@ export async function POST(req: NextRequest) {
               type: Type.STRING,
               enum: [
                 'send',
+                'swap_quote',
+                'check_price',
                 'navigate',
                 'check_balance',
                 'list_contacts',
@@ -135,7 +143,15 @@ export async function POST(req: NextRequest) {
             },
             currency: {
               type: Type.STRING,
-              enum: ['USDC', 'SOL'],
+              nullable: true,
+            },
+            swapDirection: {
+              type: Type.STRING,
+              enum: ['buy', 'sell'],
+              nullable: true,
+            },
+            outputCurrency: {
+              type: Type.STRING,
               nullable: true,
             },
             recipient: {
@@ -170,6 +186,19 @@ export async function POST(req: NextRequest) {
             ? 'history'
             : null;
 
+    const cleanToken = (val: unknown): string | null => {
+      if (typeof val !== 'string') return null;
+      const trimmed = val.trim();
+      if (!trimmed) return null;
+      const upper = trimmed.toUpperCase();
+      if (upper === 'SOLANA') return 'SOL';
+      if (upper === 'USD' || upper === 'DOLLAR' || upper === 'DOLLARS') return 'USDC';
+      return upper;
+    };
+
+    const normalizedCurrency =
+      cleanToken(parsed.currency) ?? (action === 'send' ? 'USDC' : null);
+
     const intent: PaymentIntent = {
       action,
       targetTab,
@@ -177,14 +206,14 @@ export async function POST(req: NextRequest) {
         typeof parsed.amount === 'number' && Number.isFinite(parsed.amount)
           ? parsed.amount
           : null,
-      currency:
-        parsed.currency === 'SOL'
-          ? 'SOL'
-          : parsed.currency === 'USDC'
-            ? 'USDC'
-            : action === 'send'
-              ? 'USDC'
-              : null,
+      currency: normalizedCurrency,
+      swapDirection:
+        parsed.swapDirection === 'buy' || parsed.swapDirection === 'sell'
+          ? parsed.swapDirection
+          : action === 'swap_quote'
+            ? 'sell'
+            : null,
+      outputCurrency: cleanToken(parsed.outputCurrency),
       recipient:
         typeof parsed.recipient === 'string' && parsed.recipient.trim()
           ? parsed.recipient.trim()

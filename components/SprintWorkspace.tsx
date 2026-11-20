@@ -105,10 +105,10 @@ export default function SprintWorkspace() {
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-[#22272D]">
         <div className="space-y-1.5 max-w-2xl">
           <p className="text-xs font-medium text-[#94A3B8]">
-            Prototype window: Nov 19–26 · Dev3pack Hackathon: Nov 27–29 (72 hours)
+            Gated Pre-Hackathon Window: Nov 20–26 (Gates A–C) · Dev3pack Global Hackathon: Nov 27–29
           </p>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#F8FAFC] [text-wrap:balance]">
-            Prototype Sprint &amp; 45-Second Demo Playbook
+            Gated Prototype Sprint &amp; Live Demo Playbook
           </h1>
         </div>
 
@@ -207,10 +207,10 @@ export default function SprintWorkspace() {
             <div className="flex items-center justify-between gap-3 pb-3 border-b border-[#22272D]">
               <div>
                 <h2 className="text-base font-semibold text-[#F8FAFC]">
-                  45-Second Live Demo Rehearsal
+                  Live Demo &amp; Red-Team Rehearsal
                 </h2>
                 <p className="text-xs text-[#94A3B8]">
-                  Two-phone pitch choreography for Dev3pack judges
+                  Spoken TxSummary, Quote-Only Swap &amp; self-voice red-team walkthrough (timing TBD on hardware)
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
