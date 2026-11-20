@@ -1,9 +1,17 @@
 import { View } from 'react-native';
 import { Tabs } from 'expo-router';
+import { useBicaraStore } from '../../src/context/BicaraStoreContext';
 import { EN_UI_COPY, EN_VOICE_SCRIPTS } from '../../src/i18n/en';
 import { speakEyesFree } from '../../src/services/speech';
 
 export default function SpokenTabsLayout() {
+  const { balances, contacts, transactions } = useBicaraStore();
+
+  const latestTxSummary =
+    transactions.length > 0
+      ? `${transactions[0].amount} ${transactions[0].asset} to ${transactions[0].recipientName}`
+      : null;
+
   return (
     <Tabs
       screenOptions={{
@@ -41,7 +49,11 @@ export default function SpokenTabsLayout() {
         }}
         listeners={{
           tabPress: () => {
-            void speakEyesFree(EN_VOICE_SCRIPTS.navHome(0, 0), 'tick');
+            void speakEyesFree(
+              EN_VOICE_SCRIPTS.navHome(balances?.usdc ?? 0, balances?.sol ?? 0),
+              'tick',
+              { preferElevenLabs: false }
+            );
           },
         }}
       />
@@ -53,7 +65,14 @@ export default function SpokenTabsLayout() {
         }}
         listeners={{
           tabPress: () => {
-            void speakEyesFree(EN_VOICE_SCRIPTS.navContacts(0, []), 'tick');
+            void speakEyesFree(
+              EN_VOICE_SCRIPTS.navContacts(
+                contacts.length,
+                contacts.map((c) => c.name)
+              ),
+              'tick',
+              { preferElevenLabs: false }
+            );
           },
         }}
       />
@@ -65,7 +84,11 @@ export default function SpokenTabsLayout() {
         }}
         listeners={{
           tabPress: () => {
-            void speakEyesFree(EN_VOICE_SCRIPTS.navHistory(0, null), 'tick');
+            void speakEyesFree(
+              EN_VOICE_SCRIPTS.navHistory(transactions.length, latestTxSummary),
+              'tick',
+              { preferElevenLabs: false }
+            );
           },
         }}
       />

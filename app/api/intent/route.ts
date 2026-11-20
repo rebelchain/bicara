@@ -168,6 +168,7 @@ export async function POST(req: NextRequest) {
       return (
         msg.includes('503') ||
         msg.includes('UNAVAILABLE') ||
+        msg.includes('TIMEOUT') ||
         msg.toLowerCase().includes('high demand') ||
         msg.toLowerCase().includes('overloaded')
       );
@@ -175,18 +176,32 @@ export async function POST(req: NextRequest) {
 
     const callOfficialGemini = async (
       model: 'gemini-4-hydrogen' | 'gemini-3.1-flash-lite',
-      thinkingLevel: ThinkingLevel
+      thinkingLevel: ThinkingLevel,
+      timeoutMs = 6500
     ) => {
-      return ai.models.generateContent({
-        model,
-        contents: `Spoken transcript: "${transcript}"${contactHint}`,
-        config: {
-          systemInstruction: INTENT_SYSTEM_INSTRUCTION,
-          thinkingConfig: { thinkingLevel },
-          responseMimeType: 'application/json',
-          responseSchema: intentResponseSchema,
-        },
-      });
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      try {
+        return await Promise.race([
+          ai.models.generateContent({
+            model,
+            contents: `Spoken transcript: "${transcript}"${contactHint}`,
+            config: {
+              systemInstruction: INTENT_SYSTEM_INSTRUCTION,
+              thinkingConfig: { thinkingLevel },
+              responseMimeType: 'application/json',
+              responseSchema: intentResponseSchema,
+            },
+          }),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(
+              () => reject(new Error(`503 TIMEOUT: ${model} exceeded ${timeoutMs}ms`)),
+              timeoutMs
+            );
+          }),
+        ]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
     };
 
     // Official Gemini attempts: fast low-latency gemini-3.1-flash-lite primary -> official failover gemini-4-hydrogen
@@ -196,7 +211,7 @@ export async function POST(req: NextRequest) {
       delayMs: number;
     }> = [
       { model: 'gemini-3.1-flash-lite', thinkingLevel: ThinkingLevel.MINIMAL, delayMs: 0 },
-      { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, delayMs: 200 },
+      { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, delayMs: 150 },
     ];
 
     let responseText = '';

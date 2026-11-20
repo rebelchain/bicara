@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useMobileWallet } from '@wallet-ui/react-native-kit';
+import { useBicaraStore } from '../../src/context/BicaraStoreContext';
 import { useVoiceRecorder } from '../../src/hooks/useVoiceRecorder';
 import {
   API_BASE_URL,
@@ -27,7 +29,15 @@ import {
   type HapticEvent,
   type HapticPatternId,
 } from '../../src/services/haptics';
-import { truncateAddress } from '../../src/services/solana';
+import {
+  buildCompiledDevnetTransferTransaction,
+  getSolanaExplorerTxUrl,
+  matchesSpokenChallenge,
+  normalizeMwaSignature,
+  prepareDevnetTransferPlan,
+  truncateAddress,
+  type PendingTransferPlan,
+} from '../../src/services/solana';
 import {
   speakEyesFree,
   stopSpeaking,
@@ -35,8 +45,6 @@ import {
   type SpeechTelemetry,
 } from '../../src/services/speech';
 import { EN_UI_COPY, EN_VOICE_SCRIPTS } from '../../src/i18n/en';
-
-const SEED_CONTACT_NAMES = ['Ahmad', 'Budi', 'Siti', 'Raka'];
 
 interface VoicePipelineLog {
   transcript: string;
@@ -48,17 +56,39 @@ interface VoicePipelineLog {
   extraLatencyLabel?: string;
 }
 
+interface ConfirmedReceiptBanner {
+  amount: number;
+  asset: 'SOL' | 'USDC';
+  recipientName: string;
+  signature: string;
+  explorerUrl: string;
+}
+
 export default function EyesFreeHomeScreen() {
   const router = useRouter();
-  const { account, connect, disconnect } = useMobileWallet();
+  const { account, connect, disconnect, signAndSendTransaction } = useMobileWallet();
+  const {
+    walletAddress,
+    balances,
+    loadingBalances,
+    contacts,
+    transactions,
+    storageMode,
+    refreshBalances,
+    findContactByName,
+    logConfirmedTransaction,
+  } = useBicaraStore();
   const recorder = useVoiceRecorder();
 
   const [processing, setProcessing] = useState(false);
+  const [signing, setSigning] = useState(false);
   const [showTools, setShowTools] = useState(false);
   const [lastHaptic, setLastHaptic] = useState<HapticEvent | null>(null);
   const [lastSpeech, setLastSpeech] = useState<SpeechTelemetry | null>(null);
   const [pipelineLog, setPipelineLog] = useState<VoicePipelineLog | null>(null);
   const [pipelineError, setPipelineError] = useState<string | null>(null);
+  const [pendingTransfer, setPendingTransfer] = useState<PendingTransferPlan | null>(null);
+  const [lastReceipt, setLastReceipt] = useState<ConfirmedReceiptBanner | null>(null);
   const [lastSpokenText, setLastSpokenText] = useState<string>(
     EN_VOICE_SCRIPTS.onboardingWelcome()
   );
@@ -94,6 +124,7 @@ export default function EyesFreeHomeScreen() {
   const handleWalletPress = async () => {
     try {
       if (account) {
+        setPendingTransfer(null);
         await disconnect();
         await announce(EN_UI_COPY.home.walletDisconnectedSpoken, 'tick', false);
       } else {
@@ -111,11 +142,74 @@ export default function EyesFreeHomeScreen() {
     }
   };
 
+  const executeMwaTransfer = async (plan: PendingTransferPlan) => {
+    if (signing) return;
+    setSigning(true);
+    setPipelineError(null);
+    try {
+      await announce(
+        `Opening Solflare to authorize ${plan.amount} ${plan.asset} to ${plan.recipientName}.`,
+        'tick',
+        false
+      );
+
+      const { transaction, minContextSlot } = await buildCompiledDevnetTransferTransaction(plan);
+      const rawSig = await signAndSendTransaction(
+        transaction as Parameters<typeof signAndSendTransaction>[0],
+        minContextSlot as Parameters<typeof signAndSendTransaction>[1]
+      );
+      const signature = normalizeMwaSignature(rawSig);
+      const explorerUrl = getSolanaExplorerTxUrl(signature);
+
+      await logConfirmedTransaction({
+        recipientName: plan.recipientName,
+        recipientAddress: plan.recipientAddress,
+        asset: plan.asset,
+        amount: plan.amount,
+        feeSol: plan.estimatedFeeSol + plan.ataRentSol,
+        ataCreated: plan.ataNeedsCreation,
+        signature,
+        status: 'confirmed',
+      });
+
+      setPendingTransfer(null);
+      setLastReceipt({
+        amount: plan.amount,
+        asset: plan.asset,
+        recipientName: plan.recipientName,
+        signature,
+        explorerUrl,
+      });
+
+      void refreshBalances();
+
+      const receiptSpeech = `${EN_VOICE_SCRIPTS.sendSuccess(
+        plan.amount,
+        plan.asset,
+        plan.recipientName
+      )} Confirmed on Solana Devnet. Signature ending ${signature.slice(-4)}.`;
+      await announce(receiptSpeech, 'success', true);
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : 'Transaction signing was cancelled or failed.';
+      setPipelineError(msg);
+      await announce(`Transfer not completed. ${msg}`, 'error', false);
+    } finally {
+      setSigning(false);
+    }
+  };
+
+  const handleCancelPending = async () => {
+    setPendingTransfer(null);
+    await announce(EN_VOICE_SCRIPTS.cancelled(), 'tick', true);
+  };
+
   const executeLiveVoicePipeline = async (fileUri: string) => {
     setProcessing(true);
     setPipelineError(null);
     try {
-      const keyterms = buildMobileKeyterms(SEED_CONTACT_NAMES);
+      const contactNames = contacts.map((c) => c.name);
+      const keyterms = buildMobileKeyterms(contactNames);
       const stt = await transcribeVoiceRecording(fileUri, keyterms);
       const transcript = stt.transcript.trim();
 
@@ -126,7 +220,57 @@ export default function EyesFreeHomeScreen() {
         return;
       }
 
-      const nlu = await parseVoiceIntent(transcript, SEED_CONTACT_NAMES, 'ai');
+      // Layer 2 Challenge Gate: when a pending transfer awaits confirmation, check digits or cancel first
+      if (pendingTransfer) {
+        const lower = transcript.toLowerCase();
+        if (lower.includes('cancel') || lower.includes('stop') || lower === 'no') {
+          setPipelineLog({
+            transcript,
+            sttMs: stt.latencyMs,
+            intent: {
+              action: 'cancel',
+              amount: null,
+              currency: null,
+              recipient: null,
+              confidence: 'high',
+              raw_amount_text: null,
+            },
+            nluMs: 0,
+            nluEngine: 'challenge-gate',
+            replyText: EN_VOICE_SCRIPTS.cancelled(),
+          });
+          setPendingTransfer(null);
+          await announce(EN_VOICE_SCRIPTS.cancelled(), 'tick', true);
+          return;
+        }
+
+        if (
+          matchesSpokenChallenge(transcript, pendingTransfer.challengeDigits) ||
+          lower.includes('confirm') ||
+          lower.includes('yes')
+        ) {
+          setPipelineLog({
+            transcript,
+            sttMs: stt.latencyMs,
+            intent: {
+              action: 'confirm',
+              amount: pendingTransfer.amount,
+              currency: pendingTransfer.asset,
+              recipient: pendingTransfer.recipientName,
+              confidence: 'high',
+              raw_amount_text: null,
+            },
+            nluMs: 0,
+            nluEngine: 'layer2-challenge-pass',
+            replyText: 'Challenge verified. Opening Solflare MWA for signing.',
+          });
+          setProcessing(false);
+          await executeMwaTransfer(pendingTransfer);
+          return;
+        }
+      }
+
+      const nlu = await parseVoiceIntent(transcript, contactNames, 'ai');
       const intent = nlu.intent;
 
       let replyText = '';
@@ -161,43 +305,91 @@ export default function EyesFreeHomeScreen() {
           extraLatencyLabel = `Jupiter (${quoteRes.router}): ${quoteRes.latencyMs}ms`;
         }
       } else if (intent.action === 'send') {
-        if (intent.amount && intent.recipient) {
-          replyText =
-            `You are about to send ${intent.amount} ${intent.currency || 'USDC'} to ${intent.recipient}. ` +
-            `Devnet execution wiring arrives in Gate B. Say cancel to stop.`;
-          haptic = 'confirm';
-        } else {
-          replyText = 'Please state both the amount and recipient, for example send 5 USDC to Ahmad.';
+        if (!walletAddress) {
+          replyText = 'Please connect your Solflare wallet first using the top right button.';
           haptic = 'error';
+        } else if (!intent.amount || intent.amount <= 0 || !intent.recipient) {
+          replyText =
+            'Please state both the amount and verified contact name, for example send 0.01 SOL to Ahmad or send 5 USDC to Ahmad.';
+          haptic = 'error';
+        } else {
+          const asset = intent.currency === 'SOL' ? 'SOL' : 'USDC';
+          const matchedContact = findContactByName(intent.recipient);
+          if (!matchedContact) {
+            replyText =
+              `${intent.recipient} is not in your verified contacts. ` +
+              `For your security, voice cannot send to unverified names. Open the Contacts tab to add and verify ${intent.recipient} first.`;
+            haptic = 'error';
+            extraLatencyLabel = 'Layer 3 blocked: unverified contact';
+          } else {
+            const rpcStarted = Date.now();
+            const plan = await prepareDevnetTransferPlan({
+              senderAddress: walletAddress,
+              recipientName: matchedContact.name,
+              recipientAddress: matchedContact.recipientAddress,
+              isSavedContact: true,
+              asset,
+              amount: intent.amount,
+            });
+            setPendingTransfer(plan);
+            replyText = plan.spokenSummary;
+            haptic = 'confirm';
+            extraLatencyLabel = `Devnet RPC pre-flight: ${Date.now() - rpcStarted}ms`;
+          }
         }
       } else if (intent.action === 'check_balance') {
-        replyText = EN_VOICE_SCRIPTS.balanceReadout(0, 0);
-      } else if (intent.action === 'navigate' || intent.action === 'list_contacts' || intent.action === 'read_history') {
+        if (!walletAddress) {
+          replyText = 'No wallet connected yet. Tap Connect MWA at the top right.';
+          haptic = 'error';
+        } else {
+          const rpcStarted = Date.now();
+          const live = await refreshBalances();
+          replyText = EN_VOICE_SCRIPTS.balanceReadout(live?.usdc ?? 0, live?.sol ?? 0);
+          extraLatencyLabel = `Devnet RPC balance: ${Date.now() - rpcStarted}ms`;
+        }
+      } else if (
+        intent.action === 'navigate' ||
+        intent.action === 'list_contacts' ||
+        intent.action === 'read_history'
+      ) {
         if (intent.targetTab === 'contacts' || intent.action === 'list_contacts') {
           router.push('/(tabs)/contacts');
-          replyText = EN_VOICE_SCRIPTS.navContacts(SEED_CONTACT_NAMES.length, SEED_CONTACT_NAMES);
+          replyText = EN_VOICE_SCRIPTS.navContacts(
+            contacts.length,
+            contacts.map((c) => c.name)
+          );
         } else if (intent.targetTab === 'history' || intent.action === 'read_history') {
           router.push('/(tabs)/history');
-          replyText = EN_VOICE_SCRIPTS.navHistory(0, null);
+          const latest =
+            transactions.length > 0
+              ? `${transactions[0].amount} ${transactions[0].asset} to ${transactions[0].recipientName}`
+              : null;
+          replyText = EN_VOICE_SCRIPTS.navHistory(transactions.length, latest);
         } else {
-          replyText = EN_VOICE_SCRIPTS.navHome(0, 0);
+          replyText = EN_VOICE_SCRIPTS.navHome(balances?.usdc ?? 0, balances?.sol ?? 0);
         }
         haptic = 'tick';
       } else if (intent.action === 'help') {
         replyText = EN_VOICE_SCRIPTS.helpGuide();
         haptic = 'tick';
       } else if (intent.action === 'repeat') {
-        replyText = lastSpokenText;
+        replyText = pendingTransfer ? pendingTransfer.spokenSummary : lastSpokenText;
         haptic = 'tick';
       } else if (intent.action === 'cancel') {
+        setPendingTransfer(null);
         replyText = EN_VOICE_SCRIPTS.cancelled();
         haptic = 'tick';
       } else if (intent.action === 'confirm') {
+        if (pendingTransfer) {
+          setProcessing(false);
+          await executeMwaTransfer(pendingTransfer);
+          return;
+        }
         replyText = 'No transaction is currently waiting for hardware biometric confirmation.';
         haptic = 'tick';
       } else {
         replyText =
-          'Sorry, I did not understand that. Try saying check price, swap 10 USDC to SOL, or send 5 USDC to Ahmad.';
+          'Sorry, I did not understand that. Try saying check balance, check price, swap 10 USDC to SOL, or send 0.01 SOL to Ahmad.';
         haptic = 'error';
       }
 
@@ -222,7 +414,7 @@ export default function EyesFreeHomeScreen() {
   };
 
   const handleTapAnywhereToggle = async () => {
-    if (processing) return;
+    if (processing || signing) return;
 
     if (recorder.isRecording) {
       const uri = await recorder.stopRecording();
@@ -257,21 +449,19 @@ export default function EyesFreeHomeScreen() {
     }
   };
 
-  const walletAddress = account?.address?.toString() ?? null;
-
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Compact Top Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.kicker}>Gate A.2 · Live Voice &amp; Tap-Anywhere</Text>
+          <Text style={styles.kicker}>Gate B · Live Solana Devnet</Text>
           <Text style={styles.brand}>Bicara</Text>
         </View>
         <View style={styles.headerActions}>
           <Pressable
             onPress={() => setShowTools((prev) => !prev)}
             accessibilityRole="button"
-            accessibilityLabel={showTools ? 'Close Gate A tools' : 'Open Gate A tools'}
+            accessibilityLabel={showTools ? 'Close diagnostics' : 'Open diagnostics'}
             style={styles.toolsToggleBtn}
           >
             <Text style={styles.toolsToggleText}>{showTools ? 'Canvas' : 'Tools'}</Text>
@@ -298,6 +488,25 @@ export default function EyesFreeHomeScreen() {
         </View>
       </View>
 
+      {/* Live Devnet Balance & Storage Strip */}
+      <Pressable
+        onPress={() => void refreshBalances()}
+        accessibilityRole="button"
+        accessibilityLabel="Refresh live Solana Devnet balances"
+        style={styles.balanceStrip}
+      >
+        <Text style={styles.balanceText}>
+          {walletAddress
+            ? loadingBalances
+              ? 'Syncing Devnet RPC...'
+              : `${(balances?.sol ?? 0).toFixed(4)} SOL · ${(balances?.usdc ?? 0).toFixed(2)} USDC`
+            : 'Connect Solflare (Devnet) to check balance & send'}
+        </Text>
+        <Text style={styles.storageTag}>
+          {storageMode === 'supabase' ? 'Supabase' : 'Local Cache'}
+        </Text>
+      </Pressable>
+
       {!showTools ? (
         /* TRUE Full-Screen Tap-Anywhere Eyes-Free Canvas */
         <Pressable
@@ -313,13 +522,62 @@ export default function EyesFreeHomeScreen() {
             recorder.isRecording ? styles.fullCanvasRecording : undefined,
           ]}
         >
+          {/* Layer 2/4 Pre-Sign Confirmation Card (only shown when a Devnet transfer awaits approval) */}
+          {pendingTransfer ? (
+            <View style={styles.confirmCard}>
+              <Text style={styles.confirmKicker}>
+                PRE-SIGN TX SUMMARY · LAYER 2 CHALLENGE: {pendingTransfer.challengeDigits}
+              </Text>
+              <Text style={styles.confirmHeadline}>
+                Send {pendingTransfer.amount} {pendingTransfer.asset} → {pendingTransfer.recipientName}
+              </Text>
+              <Text style={styles.confirmMeta}>
+                Wallet: {truncateAddress(pendingTransfer.recipientAddress, 6, 4)} · Fee: ~
+                {pendingTransfer.estimatedFeeSol} SOL
+                {pendingTransfer.ataNeedsCreation
+                  ? ` + ~${pendingTransfer.ataRentSol.toFixed(5)} SOL ATA rent`
+                  : ''}
+              </Text>
+              {pendingTransfer.anomalies.map((warn, idx) => (
+                <Text key={idx} style={styles.anomalyText}>
+                  {warn}
+                </Text>
+              ))}
+              <Text style={styles.confirmHint}>
+                Tap canvas &amp; say &ldquo;{pendingTransfer.challengeSpoken}&rdquo;, or tap Confirm below:
+              </Text>
+              <View style={styles.confirmActions}>
+                <Pressable
+                  onPress={() => void handleCancelPending()}
+                  disabled={signing}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel pending transfer"
+                  style={styles.cancelBtn}
+                >
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => void executeMwaTransfer(pendingTransfer)}
+                  disabled={signing}
+                  accessibilityRole="button"
+                  accessibilityLabel="Confirm and sign transaction in Solflare"
+                  style={styles.signBtn}
+                >
+                  <Text style={styles.signBtnText}>
+                    {signing ? 'Signing...' : 'Confirm & Sign'}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+
           <View style={styles.centerBlock}>
             <View
               style={[
                 styles.micCircle,
                 recorder.isRecording
                   ? styles.micCircleActive
-                  : processing
+                  : processing || signing
                     ? styles.micCircleProcessing
                     : undefined,
               ]}
@@ -327,34 +585,61 @@ export default function EyesFreeHomeScreen() {
               <Text style={styles.micLabel}>
                 {recorder.isRecording
                   ? EN_UI_COPY.home.micStopLabel
-                  : processing
-                    ? 'WAIT'
-                    : EN_UI_COPY.home.micSpeakLabel}
+                  : signing
+                    ? 'SIGN'
+                    : processing
+                      ? 'WAIT'
+                      : EN_UI_COPY.home.micSpeakLabel}
               </Text>
             </View>
 
             <Text style={styles.canvasTitle}>
               {recorder.isRecording
                 ? 'Listening... tap anywhere to send'
-                : processing
-                  ? 'Running Scribe v2 -> Gemini -> Flash v2.5...'
-                  : 'Tap ANYWHERE on screen to speak'}
+                : signing
+                  ? 'Waiting for Solflare hardware authorization...'
+                  : processing
+                    ? 'Processing voice command...'
+                    : pendingTransfer
+                      ? `Tap anywhere & say "${pendingTransfer.challengeSpoken}"`
+                      : 'Tap ANYWHERE on screen to speak'}
             </Text>
             <Text style={styles.canvasSub}>
-              Try: &ldquo;Check price&rdquo; · &ldquo;Swap 10 USDC to SOL&rdquo; · &ldquo;Send 5 USDC to Ahmad&rdquo;
+              Try: &ldquo;Check balance&rdquo; · &ldquo;Send 0.01 SOL to Ahmad&rdquo; · &ldquo;Swap 10 USDC to SOL&rdquo;
             </Text>
           </View>
 
-          {/* Live Gate A.2 Measurement Telemetry Card */}
+          {/* Latest Confirmed Devnet Receipt Banner */}
+          {lastReceipt ? (
+            <Pressable
+              onPress={() => void Linking.openURL(lastReceipt.explorerUrl)}
+              accessibilityRole="link"
+              accessibilityLabel="Open confirmed transaction on Solana Devnet Explorer"
+              style={styles.receiptBanner}
+            >
+              <Text style={styles.receiptTitle}>
+                Confirmed on Devnet: {lastReceipt.amount} {lastReceipt.asset} →{' '}
+                {lastReceipt.recipientName}
+              </Text>
+              <Text style={styles.receiptSig}>
+                Sig: {truncateAddress(lastReceipt.signature, 8, 8)} · Tap to open Explorer
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {/* Live Voice Pipeline Telemetry Card */}
           <View style={styles.telemetryBox}>
-            <Text style={styles.telemetryTitle}>Live Gate A.2 Measurements</Text>
+            <Text style={styles.telemetryTitle}>
+              Live Pipeline · {contacts.length} verified contacts in keyterms
+            </Text>
             {pipelineLog ? (
               <>
                 <Text style={styles.telemetryLine}>
                   STT (scribe_v2): &ldquo;{pipelineLog.transcript}&rdquo; ({pipelineLog.sttMs}ms)
                 </Text>
                 <Text style={styles.telemetryLine}>
-                  NLU ({pipelineLog.nluEngine}): {pipelineLog.intent?.action ?? 'unknown'} ({pipelineLog.nluMs}ms)
+                  NLU ({pipelineLog.nluEngine}): {pipelineLog.intent?.action ?? 'unknown'} (
+                  {pipelineLog.nluMs}ms)
                 </Text>
                 {pipelineLog.extraLatencyLabel ? (
                   <Text style={styles.telemetryLine}>{pipelineLog.extraLatencyLabel}</Text>
@@ -362,7 +647,7 @@ export default function EyesFreeHomeScreen() {
               </>
             ) : (
               <Text style={styles.telemetryMuted}>
-                Tap anywhere, speak an English command, then tap anywhere again to stop.
+                Add a contact in Contacts tab first, then speak a live Devnet transfer.
               </Text>
             )}
             {lastSpeech ? (
@@ -375,7 +660,7 @@ export default function EyesFreeHomeScreen() {
           </View>
         </Pressable>
       ) : (
-        /* Collapsible Gate A Diagnostic Tools */
+        /* Collapsible Diagnostic Tools */
         <ScrollView contentContainerStyle={styles.toolsContainer}>
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{EN_UI_COPY.home.hapticsCardTitle}</Text>
@@ -443,7 +728,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#1E2329',
   },
@@ -479,46 +764,143 @@ const styles = StyleSheet.create({
   walletBtnText: { fontSize: 12, fontWeight: '600' },
   walletBtnTextDark: { color: '#052E16' },
   walletBtnTextLight: { color: '#E2E8F0' },
+  balanceStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+    backgroundColor: '#101418',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E2329',
+  },
+  balanceText: {
+    color: '#E2E8F0',
+    fontSize: 12,
+    fontFamily: 'monospace',
+    fontWeight: '600',
+  },
+  storageTag: {
+    color: '#4ADE80',
+    fontSize: 11,
+    fontWeight: '600',
+  },
   fullCanvas: {
     flex: 1,
-    padding: 20,
+    padding: 16,
     justifyContent: 'space-between',
     backgroundColor: '#0B0D0E',
+    gap: 10,
   },
   fullCanvasRecording: {
     backgroundColor: '#1A0F12',
+  },
+  confirmCard: {
+    backgroundColor: '#151B16',
+    borderWidth: 1.5,
+    borderColor: '#22C55E',
+    borderRadius: 14,
+    padding: 14,
+    gap: 6,
+  },
+  confirmKicker: {
+    color: '#4ADE80',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+  },
+  confirmHeadline: {
+    color: '#F8FAFC',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  confirmMeta: {
+    color: '#CBD5E1',
+    fontSize: 12,
+    fontFamily: 'monospace',
+  },
+  anomalyText: {
+    color: '#FCD34D',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  confirmHint: {
+    color: '#94A3B8',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 6,
+  },
+  cancelBtn: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 10,
+    backgroundColor: '#1E2329',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtnText: {
+    color: '#E2E8F0',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  signBtn: {
+    flex: 1.5,
+    minHeight: 46,
+    borderRadius: 10,
+    backgroundColor: '#22C55E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  signBtnText: {
+    color: '#052E16',
+    fontSize: 14,
+    fontWeight: '800',
   },
   centerBlock: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 14,
+    gap: 12,
   },
   micCircle: {
-    width: 132,
-    height: 132,
-    borderRadius: 66,
+    width: 118,
+    height: 118,
+    borderRadius: 59,
     backgroundColor: '#22C55E',
     alignItems: 'center',
     justifyContent: 'center',
   },
   micCircleActive: { backgroundColor: '#EF4444' },
   micCircleProcessing: { backgroundColor: '#F59E0B' },
-  micLabel: { color: '#052E16', fontSize: 18, fontWeight: '800', letterSpacing: 0.6 },
-  canvasTitle: { color: '#F8FAFC', fontSize: 18, fontWeight: '700', textAlign: 'center' },
-  canvasSub: { color: '#94A3B8', fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  micLabel: { color: '#052E16', fontSize: 17, fontWeight: '800', letterSpacing: 0.6 },
+  canvasTitle: { color: '#F8FAFC', fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  canvasSub: { color: '#94A3B8', fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  receiptBanner: {
+    backgroundColor: '#0F2417',
+    borderWidth: 1,
+    borderColor: '#22C55E',
+    borderRadius: 12,
+    padding: 12,
+    gap: 3,
+  },
+  receiptTitle: { color: '#86EFAC', fontSize: 13, fontWeight: '700' },
+  receiptSig: { color: '#CBD5E1', fontSize: 11, fontFamily: 'monospace' },
   telemetryBox: {
     backgroundColor: '#14171A',
     borderWidth: 1,
     borderColor: '#23282E',
     borderRadius: 14,
-    padding: 14,
-    gap: 6,
+    padding: 12,
+    gap: 5,
   },
   telemetryTitle: { color: '#E2E8F0', fontSize: 12, fontWeight: '700' },
-  telemetryLine: { color: '#CBD5E1', fontSize: 12, fontFamily: 'monospace' },
-  telemetryMuted: { color: '#64748B', fontSize: 12, lineHeight: 18 },
-  telemetryAccent: { color: '#4ADE80', fontSize: 12, fontFamily: 'monospace', fontWeight: '600' },
+  telemetryLine: { color: '#CBD5E1', fontSize: 11, fontFamily: 'monospace' },
+  telemetryMuted: { color: '#64748B', fontSize: 12, lineHeight: 17 },
+  telemetryAccent: { color: '#4ADE80', fontSize: 11, fontFamily: 'monospace', fontWeight: '600' },
   toolsContainer: { padding: 20, gap: 16 },
   card: {
     backgroundColor: '#14171A',

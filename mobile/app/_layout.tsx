@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { MobileWalletProvider } from '@wallet-ui/react-native-kit';
+import { BicaraStoreProvider } from '../src/context/BicaraStoreContext';
 import {
   BICARA_APP_IDENTITY,
   SOLANA_CHAIN_ID,
@@ -16,15 +17,17 @@ export default function RootLayout() {
       }}
       identity={BICARA_APP_IDENTITY}
     >
-      <StatusBar style="light" backgroundColor="#0B0D0E" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: '#0B0D0E' },
-        }}
-      >
-        <Stack.Screen name="(tabs)" />
-      </Stack>
+      <BicaraStoreProvider>
+        <StatusBar style="light" backgroundColor="#0B0D0E" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: '#0B0D0E' },
+          }}
+        >
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </BicaraStoreProvider>
     </MobileWalletProvider>
   );
 }

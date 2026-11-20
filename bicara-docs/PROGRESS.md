@@ -8,7 +8,7 @@
 
 ## Current Phase
 
-**PROTOTYPE — GATE A (Physical Android USB Validation)**
+**PROTOTYPE — GATE B (Live Solana Devnet Transfer + Supabase Contacts/History)**
 - **Today**: Friday 20 November 2026
 - **Hackathon Kickoff**: Friday 27 November 2026 (tag `hackathon-start`)
 - **Submission Deadline**: Sunday 29 November 2026
@@ -40,15 +40,22 @@ What worked: Completed Narrative Reframe (Part 1) + full Code-Sync Backlog (Part
                and recorder error copy to English (JS-only; no APK rebuild needed).
              - Part 2E (Web Workbench): Synced Prototype, Architecture, Build Kit, and Sprint tab
                headings to the global English accessible-signing narrative.
-Stopped at:  All 5 Code-Sync Backlog items completed and verified; Gate A.1 hardware checks
-             (APK boot, /api/health via adb reverse, MWA Solflare Devnet, haptics, repeated
-             spoken tabs) already PASS on OPPO CPH2631 Android 16.
-Next step:   Run Gate A.2 on Azhar's physical OPPO CPH2631 Android 16 phone over USB:
-             1) git pull and reload Metro (`r`) to verify English mobile TTS/copy on-device.
-             2) Measure and log remaining Gate A rows: Picovoice Eagle genuine vs. impostor
-                scores, scribe_v2 English + dynamic keyterms accuracy, eleven_flash_v2_5
-                on-device TTS latency (ms), and live Jupiter Swap V2 Quote-Only (/api/swap/quote)
-                plus /api/prices.
+Stopped at:  Gate B pure-JS implementation complete (zero Android APK rebuild needed):
+             - Added supabase/schema.sql (contacts + transactions tables with validation checks & RLS)
+               and mobile/src/services/supabase.ts (Supabase sync + AsyncStorage local-cache fallback).
+             - Upgraded mobile/src/services/solana.ts with live Devnet RPC balance checks (SOL +
+               Circle Devnet USDC), pre-sign TxSummary + ATA rent disclosure, Layer 2 random 3-digit
+               spoken challenge matcher, and pure-JS SOL + USDC TransferChecked transaction builder.
+             - Wired shared BicaraStoreContext across Home, Contacts, History, and Spoken Bottom Tabs;
+               Home now supports live MWA signAndSendTransaction via Solflare + Devnet Explorer receipts.
+             - Optional Layer 1 (Picovoice Eagle) formally deferred post-Gate B to prioritize live
+               end-to-end Devnet reliability without native rebuild risk.
+Next step:   Run Gate B live on Azhar's OPPO CPH2631 Android 16 phone:
+             1) Paste supabase/schema.sql in Supabase SQL Editor and add EXPO_PUBLIC_SUPABASE_URL
+                + EXPO_PUBLIC_SUPABASE_ANON_KEY to mobile/.env.
+             2) Reload Metro (`r`), add a verified contact in Contacts tab (or Self-Test Fill),
+                and speak "Send 0.01 SOL to Ahmad" (or Devnet USDC) -> approve in Solflare ->
+                verify real Devnet transaction signature on Solana Explorer!
 ```
 
 ---
@@ -73,10 +80,10 @@ Next step:   Run Gate A.2 on Azhar's physical OPPO CPH2631 Android 16 phone over
 | `/api/health` returns `200 OK` on phone via `adb reverse` | `[x] PASS` | Green `Connected` verified on OPPO CPH2631 over USB (`adb reverse tcp:3000 tcp:3000` -> root Next.js `npm run dev`). |
 | MWA authorize on `solana:devnet` (Phantom / Solflare) | `[x] PASS` | Tapping Connect MWA launched Solflare on Android 16; approving returned and displayed truncated wallet address in top-right button. |
 | Wallet approval screen eyes-free test (TalkBack / biometric-only) | `[x] MEASURED` | **Key finding**: Solflare approval screen showed no fingerprint/biometric prompt on connect and required looking at the screen to tap Approve. **Demo implication**: Scope Screen Curtain to Bicara's own screens and disclose external wallet popup accessibility limits honestly to judges. |
-| Picovoice Eagle genuine vs. impostor scores & chosen threshold | `[ ] Pending` | — |
-| `scribe_v2` English + dynamic `keyterms` accuracy | `[ ] Pending` | — |
-| `eleven_flash_v2_5` on-device TTS latency (ms) | `[ ] Pending` | — |
-| Jupiter Swap API V2 Quote-Only (`USDC ↔ SOL`) server proxy test | `[x] PASS` | Live `/api/swap/quote` via Jupiter `/swap/v2/order` (no `taker`): `10 USDC -> 0.144895 SOL` (`router: "metis"`, `transaction: null`, `feeBps: 2`, `322ms`); unverified token `XYZ` blocked with `HTTP 403`. |
+| Picovoice Eagle genuine vs. impostor scores & chosen threshold | `[~] DEFERRED` | **Recorded Gate A fallback (20 Nov 2026)**: Optional Layer 1 deferred post-Gate B so live Solana Devnet transfers + Supabase ship in pure JS with zero Android 16 native rebuild risk. Defense relies on Layers 2–5 (`VOICE IDENTIFIES, HARDWARE AUTHORIZES`). |
+| `scribe_v2` English + dynamic `keyterms` accuracy | `[x] PASS` | Live on OPPO CPH2631 Android 16 (`expo-audio` `.m4a` -> `/api/stt` via USB): **`760–774ms`**, accurately transcribed `"Check price"`, `"Swap 10 USDC to SOL"`, and `"Send 5 USDC to Ahmad"` (dynamic contact keyterm `"Ahmad"` + `"USDC"`/`"SOL"` recognized cleanly). |
+| `eleven_flash_v2_5` on-device TTS latency (ms) | `[x] PASS` | Live on OPPO CPH2631 Android 16 (`GET /api/tts` -> `expo-audio` `createAudioPlayer`, premade voice Sarah `EXAVITQu4vr4xnSDxMaL`): **`558–732ms` warm** (`1296ms` cold first call). |
+| Jupiter Swap API V2 Quote-Only (`USDC ↔ SOL`) server proxy test | `[x] PASS` | Live voice-triggered `/api/swap/quote` via Jupiter `/swap/v2/order` (no `taker`): `10 USDC -> 0.14434 SOL` (`724ms` E2E on phone; `322ms` curl, `router: "metis"`, `transaction: null`, `feeBps: 2`); `/api/prices` `512ms` (`SOL ~$69.26`); unverified token `XYZ` blocked with `HTTP 403`. |
 
 ---
 
