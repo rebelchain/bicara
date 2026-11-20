@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Code2, Mic } from 'lucide-react';
+import { ArrowLeft, AudioLines, Code2, Mic } from 'lucide-react';
 import {
   SEED_CONTACTS,
   SEED_TRANSACTIONS,
@@ -37,6 +37,7 @@ export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchPr
   const [senderBalanceSol, setSenderBalanceSol] = useState<number>(INITIAL_SENDER_SOL);
   const [walletConnected, setWalletConnected] = useState<boolean>(true);
   const [demoTriggerNonce, setDemoTriggerNonce] = useState<number>(0);
+  const [demoCommand, setDemoCommand] = useState<string>('Send 5 USDC to Ahmad');
 
   const handleAddContact = (newContact: Contact) => {
     setContacts((prev) => [newContact, ...prev]);
@@ -78,9 +79,13 @@ export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchPr
     setWalletConnected(true);
   };
 
-  const handleOpenDemo = () => {
-    setSurfaceMode('demo');
+  const handleOpenDemo = (scenarioCommand?: string) => {
     setWalletConnected(true);
+    if (scenarioCommand) {
+      setDemoCommand(scenarioCommand);
+      setDemoTriggerNonce((n) => n + 1);
+    }
+    setSurfaceMode('demo');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -90,23 +95,6 @@ export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchPr
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const navigateToSection = (sectionId: string) => {
-    if (surfaceMode !== 'landing') {
-      setSurfaceMode('landing');
-      setTimeout(() => {
-        document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
-      }, 60);
-    } else {
-      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  const landingNavItems = [
-    { id: 'how-it-works', label: 'How it works' },
-    { id: 'features', label: 'Features' },
-    { id: 'security', label: 'Security' },
-  ];
-
   const developerTabs: Array<{ id: DeveloperTab; label: string }> = [
     { id: 'architecture', label: 'Architecture' },
     { id: 'buildkit', label: 'Build Kit' },
@@ -114,79 +102,110 @@ export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchPr
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0F0F0F] text-[#F4F4F5]">
-      {/* Strict 3-Zone Top Bar Contract */}
-      <header className="sticky top-0 z-40 bg-[#0F0F0F]/90 backdrop-blur-md border-b border-white/[0.08]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-8">
-          {/* Zone 1: Brand Wordmark */}
-          <button
-            type="button"
-            onClick={() => {
-              setSurfaceMode('landing');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className="inline-flex items-center gap-2.5 whitespace-nowrap shrink-0 cursor-pointer"
-          >
-            <span className="w-8 h-8 rounded-xl bg-[#CCFF00] text-[#0F0F0F] flex items-center justify-center shrink-0">
-              <Mic className="w-4 h-4" aria-hidden="true" />
-            </span>
-            <span className="font-display text-xl font-extrabold tracking-tight text-[#F4F4F5]">
-              Bicara
-            </span>
-          </button>
+    <div className="min-h-screen flex flex-col bg-[#FAF9F5] text-[#1E3124]">
+      {/* Warm Sunlit 3-Zone Top Bar for Demo & Developers Surfaces (Landing uses its full-bleed floating nav) */}
+      {surfaceMode !== 'landing' && (
+        <header className="sticky top-0 z-40 bg-[#FAF9F5]/92 backdrop-blur-md border-b border-[#E2E6DC]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-8">
+            {/* Zone 1: Brand Wordmark */}
+            <button
+              type="button"
+              onClick={() => {
+                setSurfaceMode('landing');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="inline-flex items-center gap-2.5 whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <span className="w-8 h-8 rounded-xl bg-[#356341] text-white flex items-center justify-center shrink-0">
+                <AudioLines className="w-4 h-4" strokeWidth={2.5} aria-hidden="true" />
+              </span>
+              <span className="font-display text-xl font-black tracking-tight text-[#1E3124]">
+                Bicara
+              </span>
+            </button>
 
-          {/* Zone 2: Clean Consumer Nav Links */}
-          <nav
-            aria-label="Primary navigation"
-            className="hidden md:flex items-center gap-8 text-sm font-medium text-[#A1A1AA]"
-          >
-            {landingNavItems.map((item) => (
+            {/* Zone 2: Clean Studio Switcher Links */}
+            <nav
+              aria-label="Studio navigation"
+              className="hidden md:flex items-center gap-8 text-sm font-semibold text-[#526658]"
+            >
               <button
-                key={item.id}
                 type="button"
-                onClick={() => navigateToSection(item.id)}
-                className="hover:text-[#CCFF00] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                onClick={() => handleOpenDemo()}
+                className={`transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                  surfaceMode === 'demo'
+                    ? 'text-[#1E3124]'
+                    : 'hover:text-[#356341]'
+                }`}
               >
-                {item.label}
+                Interactive Demo
               </button>
-            ))}
-          </nav>
-
-          {/* Zone 3: Single Primary Action */}
-          <div className="flex items-center shrink-0">
-            {surfaceMode === 'landing' ? (
               <button
                 type="button"
                 onClick={() => handleOpenDevelopers('architecture')}
-                className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold text-[#F4F4F5] hover:text-[#CCFF00] border border-white/20 hover:border-[#CCFF00] rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                className={`transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                  surfaceMode === 'developers' && devTab === 'architecture'
+                    ? 'text-[#1E3124]'
+                    : 'hover:text-[#356341]'
+                }`}
               >
-                <Code2 className="w-4 h-4" aria-hidden="true" />
-                <span>Developers &amp; Judges</span>
+                Architecture
               </button>
-            ) : (
+              <button
+                type="button"
+                onClick={() => handleOpenDevelopers('buildkit')}
+                className={`transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                  surfaceMode === 'developers' && devTab === 'buildkit'
+                    ? 'text-[#1E3124]'
+                    : 'hover:text-[#356341]'
+                }`}
+              >
+                Build Kit
+              </button>
+              <button
+                type="button"
+                onClick={() => handleOpenDevelopers('docs')}
+                className={`transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                  surfaceMode === 'developers' && devTab === 'docs'
+                    ? 'text-[#1E3124]'
+                    : 'hover:text-[#356341]'
+                }`}
+              >
+                Docs
+              </button>
+            </nav>
+
+            {/* Zone 3: Single Primary Action */}
+            <div className="flex items-center shrink-0">
               <button
                 type="button"
                 onClick={() => {
                   setSurfaceMode('landing');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold text-[#0F0F0F] bg-[#CCFF00] hover:bg-[#B3E600] rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold text-white bg-[#356341] hover:bg-[#2A5135] rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" aria-hidden="true" />
                 <span>Back to Landing</span>
               </button>
-            )}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8">
+      <main
+        className={
+          surfaceMode === 'landing'
+            ? 'flex-1 w-full'
+            : 'flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8'
+        }
+      >
         <motion.div
           key={surfaceMode === 'developers' ? `dev-${devTab}` : surfaceMode}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
         >
           {surfaceMode === 'landing' && (
             <BicaraLanding
@@ -197,15 +216,15 @@ export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchPr
 
           {surfaceMode === 'demo' && (
             <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-white/10">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-[#E2E6DC]">
                 <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-[#CCFF00]">
+                  <p className="text-xs font-semibold text-[#457249]">
                     Interactive Browser Sandbox
                   </p>
-                  <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#F4F4F5]">
+                  <h1 className="font-display text-2xl sm:text-3xl font-black tracking-tight text-[#1E3124]">
                     Try Bicara&apos;s Spoken Verification Flow
                   </h1>
-                  <p className="text-sm text-[#A1A1AA] max-w-2xl">
+                  <p className="text-sm text-[#526658] max-w-2xl">
                     Speak or tap a sample command below to test eyes-free narration, screen curtain
                     mode, and pre-sign confirmation.
                   </p>
@@ -214,8 +233,11 @@ export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchPr
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
-                    onClick={() => setDemoTriggerNonce((n) => n + 1)}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-[#0F0F0F] bg-[#CCFF00] hover:bg-[#B3E600] rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                    onClick={() => {
+                      setDemoCommand('Send 5 USDC to Ahmad');
+                      setDemoTriggerNonce((n) => n + 1);
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-[#356341] hover:bg-[#2A5135] rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     <Mic className="w-3.5 h-3.5" aria-hidden="true" />
                     <span>Run Sample Send</span>
@@ -223,9 +245,9 @@ export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchPr
                   <button
                     type="button"
                     onClick={() => handleOpenDevelopers('architecture')}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-[#F4F4F5] bg-[#1A1A1A] hover:border-[#CCFF00] border border-white/15 rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-[#1E3124] bg-white hover:border-[#356341] border border-[#D4DDD0] rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                   >
-                    <Code2 className="w-3.5 h-3.5 text-[#CCFF00]" aria-hidden="true" />
+                    <Code2 className="w-3.5 h-3.5 text-[#356341]" aria-hidden="true" />
                     <span>Developers &amp; Judges</span>
                   </button>
                 </div>
@@ -243,21 +265,22 @@ export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchPr
                 onCompleteTransfer={handleCompleteTransfer}
                 onResetBalances={handleResetBalances}
                 demoTriggerNonce={demoTriggerNonce}
+                demoCommand={demoCommand}
               />
             </div>
           )}
 
           {surfaceMode === 'developers' && (
             <div className="space-y-8">
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-white/10">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-[#E2E6DC]">
                 <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-[#CCFF00]">
+                  <p className="text-xs font-semibold text-[#457249]">
                     Developers &amp; Judges Studio
                   </p>
-                  <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#F4F4F5]">
+                  <h1 className="font-display text-2xl sm:text-3xl font-black tracking-tight text-[#1E3124]">
                     Technical Architecture, Build Kit &amp; Docs
                   </h1>
-                  <p className="text-sm text-[#A1A1AA]">
+                  <p className="text-sm text-[#526658]">
                     Full SDK blueprint, Android Custom Dev Build runbook, and live repository docs
                     (including PROGRESS.md).
                   </p>
@@ -266,7 +289,7 @@ export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchPr
                 <div
                   role="tablist"
                   aria-label="Developer workspace sections"
-                  className="inline-flex items-center p-1 bg-[#1A1A1A] border border-white/10 rounded-xl self-start sm:self-auto"
+                  className="inline-flex items-center p-1 bg-[#EEF3E8] border border-[#DCE4D4] rounded-full self-start sm:self-auto"
                 >
                   {developerTabs.map((tab) => {
                     const active = devTab === tab.id;
@@ -277,10 +300,10 @@ export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchPr
                         role="tab"
                         aria-selected={active}
                         onClick={() => setDevTab(tab.id)}
-                        className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                        className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                           active
-                            ? 'bg-[#CCFF00] text-[#0F0F0F]'
-                            : 'text-[#A1A1AA] hover:text-[#F4F4F5]'
+                            ? 'bg-[#356341] text-white shadow-sm'
+                            : 'text-[#526658] hover:text-[#1E3124]'
                         }`}
                       >
                         {tab.label}
@@ -298,15 +321,15 @@ export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchPr
         </motion.div>
       </main>
 
-      {/* Clean Minimal Footer */}
-      <footer className="border-t border-white/[0.08] bg-[#141414] py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#A1A1AA]">
+      {/* Clean Sunlit Minimal Footer */}
+      <footer className="border-t border-[#E2E6DC] bg-[#F3F5EE] py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#526658]">
           <div className="flex items-center gap-2.5">
-            <span className="w-6 h-6 rounded-lg bg-[#CCFF00] text-[#0F0F0F] flex items-center justify-center shrink-0">
-              <Mic className="w-3.5 h-3.5" aria-hidden="true" />
+            <span className="w-6 h-6 rounded-lg bg-[#356341] text-white flex items-center justify-center shrink-0">
+              <AudioLines className="w-3.5 h-3.5" strokeWidth={2.5} aria-hidden="true" />
             </span>
-            <span className="font-display font-bold text-sm text-[#F4F4F5]">Bicara</span>
-            <span aria-hidden="true" className="text-white/20">
+            <span className="font-display font-black text-sm text-[#1E3124]">Bicara</span>
+            <span aria-hidden="true" className="text-[#B8C4B2]">
               ·
             </span>
             <span>Speak before you sign on Solana.</span>
@@ -315,26 +338,26 @@ export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchPr
           <div className="flex flex-wrap items-center gap-5">
             <button
               type="button"
-              onClick={handleOpenDemo}
-              className="hover:text-[#CCFF00] transition-colors cursor-pointer"
+              onClick={() => handleOpenDemo()}
+              className="hover:text-[#356341] transition-colors cursor-pointer"
             >
               Interactive Demo
             </button>
             <button
               type="button"
               onClick={() => handleOpenDevelopers('docs')}
-              className="hover:text-[#CCFF00] transition-colors cursor-pointer"
+              className="hover:text-[#356341] transition-colors cursor-pointer"
             >
               Documentation
             </button>
             <button
               type="button"
               onClick={() => handleOpenDevelopers('buildkit')}
-              className="hover:text-[#CCFF00] transition-colors cursor-pointer"
+              className="hover:text-[#356341] transition-colors cursor-pointer"
             >
               Solana Mobile Build Kit
             </button>
-            <span className="text-[#71717A]">© 2026 Bicara · MIT Open Source</span>
+            <span className="text-[#788A7D]">© 2026 Bicara · MIT Open Source</span>
           </div>
         </div>
       </footer>

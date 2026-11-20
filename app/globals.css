@@ -1,23 +1,23 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-grandstander), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
 @layer base {
   html {
-    background-color: #0f0f0f;
-    color: #f4f4f5;
-    color-scheme: dark;
+    background-color: #faf9f5;
+    color: #1e3124;
+    color-scheme: light;
     scroll-behavior: smooth;
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: #0f0f0f;
-    color: #f4f4f5;
+    background-color: #faf9f5;
+    color: #1e3124;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
   }
@@ -30,34 +30,58 @@
   }
 
   :focus-visible {
-    outline: 2px solid #ccff00;
+    outline: 2px solid #356341;
     outline-offset: 2px;
   }
 }
 
+@keyframes skyBreezeDrift {
+  0% {
+    transform: scale(1.045) translate3d(0%, 0%, 0);
+  }
+  50% {
+    transform: scale(1.075) translate3d(-1.1%, -0.6%, 0);
+  }
+  100% {
+    transform: scale(1.045) translate3d(0%, 0%, 0);
+  }
+}
+
+.bicara-living-scene {
+  animation: skyBreezeDrift 22s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bicara-living-scene {
+    animation: none;
+    transform: scale(1.03);
+  }
+}
+
 .bicara-markdown {
-  color: #d4d4d8;
+  color: #304436;
   font-size: 0.9375rem;
-  line-height: 1.7;
+  line-height: 1.75;
 }
 
 .bicara-markdown h1,
 .bicara-markdown .md-doc-title {
-  font-size: 1.625rem;
-  font-weight: 700;
-  color: #f4f4f5;
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #1e3124;
   margin-top: 0;
   margin-bottom: 1rem;
   padding-bottom: 0.65rem;
-  border-bottom: 1px solid #262626;
+  border-bottom: 1px solid #e2e6dc;
   letter-spacing: -0.02em;
 }
 
 .bicara-markdown h2:not(.md-doc-title),
 .bicara-markdown .md-doc-section {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #f4f4f5;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e3124;
   margin-top: 1.75rem;
   margin-bottom: 0.75rem;
   letter-spacing: -0.015em;
@@ -65,14 +89,14 @@
 
 .bicara-markdown h3 {
   font-size: 1rem;
-  font-weight: 600;
-  color: #e4e4e7;
+  font-weight: 700;
+  color: #263d2d;
   margin-top: 1.25rem;
   margin-bottom: 0.5rem;
 }
 
 .bicara-markdown p {
-  margin-bottom: 0.9rem;
+  margin-bottom: 0.95rem;
 }
 
 .bicara-markdown ul,
@@ -94,38 +118,38 @@
 }
 
 .bicara-markdown blockquote {
-  border: 1px solid rgba(204, 255, 0, 0.22);
-  background-color: #161616;
-  border-radius: 0.75rem;
-  padding: 0.85rem 1rem;
+  border: 1px solid #d5e0d1;
+  background-color: #f3f6ef;
+  border-radius: 0.875rem;
+  padding: 0.9rem 1.05rem;
   margin-bottom: 1rem;
-  color: #f4f4f5;
+  color: #1e3124;
 }
 
 .bicara-markdown code {
   font-family: var(--font-mono);
   font-size: 0.825rem;
-  background-color: #1a1a1a;
-  color: #ccff00;
-  padding: 0.12rem 0.35rem;
-  border-radius: 0.3rem;
+  background-color: #eef3e8;
+  color: #2b5938;
+  padding: 0.14rem 0.38rem;
+  border-radius: 0.35rem;
 }
 
 .bicara-markdown pre {
-  background-color: #121212;
-  border: 1px solid #262626;
-  border-radius: 0.75rem;
-  padding: 0.95rem 1.05rem;
+  background-color: #1c2820;
+  border: 1px solid #2b3a30;
+  border-radius: 0.875rem;
+  padding: 1rem 1.1rem;
   overflow-x: auto;
-  margin-bottom: 1.1rem;
+  margin-bottom: 1.15rem;
 }
 
 .bicara-markdown pre code {
   background: transparent;
-  color: #e4e4e7;
+  color: #eef3ec;
   padding: 0;
   font-size: 0.8rem;
-  line-height: 1.6;
+  line-height: 1.65;
 }
 
 .bicara-markdown table {
@@ -137,25 +161,25 @@
 
 .bicara-markdown th {
   text-align: left;
-  padding: 0.6rem 0.75rem;
-  color: #f4f4f5;
+  padding: 0.65rem 0.8rem;
+  color: #1e3124;
   font-weight: 600;
-  background-color: #161616;
-  border-bottom: 1px solid #2e2e2e;
+  background-color: #f3f5ee;
+  border-bottom: 1px solid #d8dfd2;
 }
 
 .bicara-markdown td {
-  padding: 0.6rem 0.75rem;
-  border-bottom: 1px solid #222222;
+  padding: 0.65rem 0.8rem;
+  border-bottom: 1px solid #e8ece2;
   vertical-align: top;
 }
 
 .bicara-markdown hr {
-  border-color: #262626;
+  border-color: #e2e6dc;
   margin: 1.5rem 0;
 }
 
 .bicara-markdown strong {
-  color: #f4f4f5;
-  font-weight: 600;
+  color: #1e3124;
+  font-weight: 700;
 }

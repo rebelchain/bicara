@@ -97,7 +97,7 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
       });
     } catch (err) {
       setHealthError(
-        err instanceof Error ? err.message : 'Gagal menghubungi server proxy.'
+        err instanceof Error ? err.message : 'Unable to reach voice proxy server.'
       );
     } finally {
       setCheckingProxy(false);
@@ -132,40 +132,41 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
 
   return (
     <section
-      aria-label="Step 1 Expo Custom Dev Build Kit and Physical Android USB Runbook"
+      aria-label="Expo Custom Dev Build Kit and Physical Android USB Runbook"
       className="space-y-8"
     >
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-white/10">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-[#E2E6DC]">
         <div className="space-y-2 max-w-2xl">
-          <p className="text-xs font-medium text-[#CCFF00]">
-            Gate A Hardware Validation · Physical Android USB · Track A (@solana/kit) · English Locale Dictionary
+          <p className="text-xs font-semibold text-[#457249]">
+            Gate A &amp; B Hardware Validation · Physical Android USB · Track A (@solana/kit)
           </p>
-          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#F4F4F5] [text-wrap:balance]">
+          <h2 className="font-display text-2xl sm:text-3xl font-black tracking-tight text-[#1E3124] [text-wrap:balance]">
             Android Mobile Build Kit &amp; Server Proxy Diagnostics
           </h2>
-          <p className="text-sm sm:text-[15px] text-[#A1A1AA] leading-relaxed">
-            Reference Android Custom Dev Build in <span className="font-mono text-[#F4F4F5]">/mobile</span>{' '}
-            for the <span className="font-mono text-[#F4F4F5]">accessible-signing</span> layer, paired with
-            physical <span className="font-mono text-[#F4F4F5]">expo-haptics</span> and server-side ElevenLabs,
-            Gemini, and Quote-Only Jupiter proxies.
+          <p className="text-sm sm:text-[15px] text-[#526658] leading-relaxed">
+            Reference Android Custom Dev Build in{' '}
+            <span className="font-mono text-[#1E3124]">/mobile</span> for the{' '}
+            <span className="font-mono text-[#1E3124]">accessible-signing</span> layer, paired with
+            physical <span className="font-mono text-[#1E3124]">expo-haptics</span> and server-side
+            ElevenLabs, Gemini, and Quote-Only Jupiter proxies.
           </p>
         </div>
 
         {/* USB vs Wireless Connection Mode Switcher */}
         <div
           role="group"
-          aria-label="Mode Koneksi HP Android ke Backend Proxy"
-          className="inline-flex flex-wrap items-center gap-1 p-1 bg-[#1A1A1A] border border-white/10 rounded-xl max-w-full self-start lg:self-end"
+          aria-label="Android to backend connection mode"
+          className="inline-flex flex-wrap items-center gap-1 p-1 bg-[#EEF3E8] border border-[#DCE4D4] rounded-full max-w-full self-start lg:self-end"
         >
           <button
             type="button"
             data-testid="conn-mode-usb"
             onClick={() => setConnMode('usb')}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
               connMode === 'usb'
-                ? 'bg-[#CCFF00] text-[#0F0F0F]'
-                : 'text-[#A1A1AA] hover:text-[#F4F4F5]'
+                ? 'bg-[#356341] text-white'
+                : 'text-[#526658] hover:text-[#1E3124]'
             }`}
           >
             <Usb className="w-3.5 h-3.5" aria-hidden="true" />
@@ -175,10 +176,10 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
             type="button"
             data-testid="conn-mode-wireless"
             onClick={() => setConnMode('wireless')}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
               connMode === 'wireless'
-                ? 'bg-[#CCFF00] text-[#0F0F0F]'
-                : 'text-[#A1A1AA] hover:text-[#F4F4F5]'
+                ? 'bg-[#356341] text-white'
+                : 'text-[#526658] hover:text-[#1E3124]'
             }`}
           >
             <Wifi className="w-3.5 h-3.5" aria-hidden="true" />
@@ -189,21 +190,21 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
 
       {/* Top Row: Physical Android USB Runbook (7 cols) + Live Voice Proxy Diagnostics (5 cols) */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        {/* Left: HP Android Fisik USB Runbook */}
-        <div className="xl:col-span-7 bg-[#1A1A1A] border border-white/10 rounded-2xl p-5 sm:p-6 space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-white/10">
+        {/* Left: Physical Android USB Runbook */}
+        <div className="xl:col-span-7 bg-white border border-[#E2E6DC] rounded-2xl p-5 sm:p-6 space-y-5 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-[#E9EDE3]">
             <div className="space-y-0.5">
               <div className="flex items-center gap-2">
-                <Smartphone className="w-4 h-4 text-[#CCFF00]" aria-hidden="true" />
-                <h3 className="text-base font-semibold text-[#F4F4F5]">
+                <Smartphone className="w-4 h-4 text-[#356341]" aria-hidden="true" />
+                <h3 className="text-base font-bold text-[#1E3124]">
                   01. Physical Android USB Runbook (No Emulator Needed)
                 </h3>
               </div>
-              <p className="text-xs text-[#A1A1AA]">
+              <p className="text-xs text-[#526658]">
                 Laptop only needs JDK 17 + Android SDK Platform-Tools &amp; Build-Tools
               </p>
             </div>
-            <span className="text-xs font-mono text-[#CCFF00]">
+            <span className="text-xs font-mono text-[#2E6B40] font-semibold">
               {connMode === 'usb' ? 'http://localhost:3000 via USB' : 'Public HTTPS / LAN URL'}
             </span>
           </div>
@@ -218,26 +219,26 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
               return (
                 <li
                   key={step.id}
-                  className="p-4 bg-[#111111] border border-white/10 rounded-xl space-y-2.5"
+                  className="p-4 bg-[#FAF9F5] border border-[#E6EAE0] rounded-xl space-y-2.5"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
-                      <div className="text-sm font-semibold text-[#F4F4F5]">
-                        <span className="font-mono text-[#CCFF00] mr-2">{step.stepNum}.</span>
+                      <div className="text-sm font-bold text-[#1E3124]">
+                        <span className="font-mono text-[#356341] mr-2">{step.stepNum}.</span>
                         {step.title}
                       </div>
-                      <p className="text-xs text-[#A1A1AA] leading-relaxed">{step.detail}</p>
+                      <p className="text-xs text-[#526658] leading-relaxed">{step.detail}</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => void handleCopy(copyKey, cmd)}
-                      aria-label={`Salin perintah langkah ${step.stepNum}`}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-[#A1A1AA] hover:text-[#F4F4F5] bg-[#1A1A1A] border border-white/10 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                      aria-label={`Copy command for step ${step.stepNum}`}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-[#526658] hover:text-[#1E3124] bg-white border border-[#DCE3D6] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                     >
                       {copiedId === copyKey ? (
                         <>
-                          <Check className="w-3.5 h-3.5 text-[#CCFF00]" />
-                          <span className="text-[#CCFF00]">Copied</span>
+                          <Check className="w-3.5 h-3.5 text-[#2E6B40]" />
+                          <span className="text-[#2E6B40] font-semibold">Copied</span>
                         </>
                       ) : (
                         <>
@@ -247,7 +248,7 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
                       )}
                     </button>
                   </div>
-                  <pre className="bg-[#0F0F0F] border border-white/10 rounded-lg p-3 text-xs font-mono text-[#CCFF00] overflow-x-auto">
+                  <pre className="bg-[#1C2820] border border-[#2B3A30] rounded-lg p-3 text-xs font-mono text-[#CFECC8] overflow-x-auto">
                     <code>{cmd}</code>
                   </pre>
                 </li>
@@ -258,16 +259,16 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
 
         {/* Right: Live Voice Proxy Endpoint Diagnostics */}
         <div className="xl:col-span-5 space-y-6">
-          <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl p-5 sm:p-6 space-y-4">
-            <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/10">
+          <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 sm:p-6 space-y-4 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
+            <div className="flex items-start justify-between gap-3 pb-3 border-b border-[#E9EDE3]">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-[#CCFF00]" aria-hidden="true" />
-                  <h3 className="text-base font-semibold text-[#F4F4F5]">
+                  <Activity className="w-4 h-4 text-[#356341]" aria-hidden="true" />
+                  <h3 className="text-base font-bold text-[#1E3124]">
                     02. Live Server Voice Proxy Check
                   </h3>
                 </div>
-                <p className="text-xs text-[#A1A1AA]">
+                <p className="text-xs text-[#526658]">
                   Verifies Next.js server routes consumed by the Android app over port 3000
                 </p>
               </div>
@@ -278,7 +279,7 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
               data-testid="test-proxy-btn"
               onClick={() => void handleTestProxies()}
               disabled={checkingProxy}
-              className="w-full min-h-[44px] px-4 py-2.5 text-xs font-bold text-[#0F0F0F] bg-[#CCFF00] hover:bg-[#B3E600] disabled:opacity-60 rounded-xl transition-colors inline-flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full min-h-[44px] px-4 py-2.5 text-xs font-bold text-white bg-[#356341] hover:bg-[#2A5135] disabled:opacity-60 rounded-full transition-colors inline-flex items-center justify-center gap-2 cursor-pointer"
             >
               {checkingProxy ? (
                 <>
@@ -296,14 +297,14 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
             {healthError && (
               <div
                 role="alert"
-                className="p-3 bg-[#211214] border border-[#EF4444]/40 rounded-lg text-xs text-[#FCA5A5] flex items-start gap-2"
+                className="p-3 bg-[#FEF2F2] border border-[#FECACA] rounded-xl text-xs text-[#991B1B] flex items-start gap-2"
               >
-                <AlertCircle className="w-4 h-4 text-[#EF4444] shrink-0 mt-0.5" />
+                <AlertCircle className="w-4 h-4 text-[#DC2626] shrink-0 mt-0.5" />
                 <span>{healthError}</span>
               </div>
             )}
 
-            <div className="divide-y divide-[#1E2329] text-xs" data-testid="proxy-status-list">
+            <div className="divide-y divide-[#ECEFE6] text-xs" data-testid="proxy-status-list">
               {[
                 {
                   route: 'GET /api/health',
@@ -313,7 +314,7 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
                 },
                 {
                   route: 'POST /api/intent',
-                  role: 'Gemini 4 Hydrogen + bilingual regex fallback',
+                  role: 'Gemini NLU + regex fallback',
                   ready: healthResult ? true : null,
                   note: healthResult
                     ? healthResult.env.geminiConfigured
@@ -344,14 +345,14 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
               ].map((ep) => (
                 <div key={ep.route} className="py-3 first:pt-1 last:pb-0 space-y-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono font-semibold text-[#F8FAFC]">{ep.route}</span>
+                    <span className="font-mono font-semibold text-[#1E3124]">{ep.route}</span>
                     <span
-                      className={`font-mono text-[11px] inline-flex items-center gap-1 ${
+                      className={`font-mono text-[11px] font-semibold inline-flex items-center gap-1 ${
                         ep.ready === true
-                          ? 'text-[#4ADE80]'
+                          ? 'text-[#2E6B40]'
                           : ep.ready === false
-                            ? 'text-[#FBBF24]'
-                            : 'text-[#64748B]'
+                            ? 'text-[#B45309]'
+                            : 'text-[#788A7D]'
                       }`}
                     >
                       {ep.ready === true ? (
@@ -359,33 +360,40 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
                       ) : ep.ready === false ? (
                         <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
                       ) : null}
-                      <span>{ep.ready === true ? 'Ready' : ep.ready === false ? 'Key Needed' : 'Idle'}</span>
+                      <span>
+                        {ep.ready === true ? 'Ready' : ep.ready === false ? 'Key Needed' : 'Idle'}
+                      </span>
                     </span>
                   </div>
-                  <p className="text-[#94A3B8]">{ep.role}</p>
-                  <p className="font-mono text-[11px] text-[#64748B]">{ep.note}</p>
+                  <p className="text-[#526658]">{ep.role}</p>
+                  <p className="font-mono text-[11px] text-[#788A7D]">{ep.note}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Step 1 Hardware Exit Criteria Box */}
-          <div className="bg-[#14171A] border border-[#23282E] rounded-xl p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-[#F8FAFC]">
-              Step 1 Exit Criteria (Di HP Android Fisik)
+          {/* Hardware Exit Criteria Box */}
+          <div className="bg-[#F3F6EE] border border-[#DCE4D4] rounded-2xl p-5 space-y-3">
+            <h3 className="text-sm font-bold text-[#1E3124]">
+              Physical Android Verification Checklist
             </h3>
-            <ul className="space-y-2 text-xs text-[#94A3B8] leading-relaxed list-disc pl-4">
+            <ul className="space-y-2 text-xs text-[#526658] leading-relaxed list-disc pl-4">
               <li>
-                APK Custom Dev Build terpasang lewat <span className="font-mono text-[#E2E8F0]">npx expo run:android</span> tanpa error Hermes <span className="font-mono text-[#E2E8F0]">crypto.getRandomValues</span>.
+                Custom Dev Client installed via{' '}
+                <span className="font-mono text-[#1E3124]">npx expo run:android</span> with Hermes
+                crypto polyfill ready.
               </li>
               <li>
-                Sambutan suara keluar otomatis saat aplikasi dibuka (Zero-Silent-Screen) dan 5 tombol uji <span className="font-mono text-[#E2E8F0]">expo-haptics</span> bergetar fisik di tangan.
+                Zero-Silent-Screen greeting speaks automatically on launch and all 5 physical{' '}
+                <span className="font-mono text-[#1E3124]">expo-haptics</span> patterns trigger.
               </li>
               <li>
-                Ketuk <span className="font-mono text-[#E2E8F0]">Connect MWA</span> membuka Phantom/Solflare Devnet dan menampilkan alamat wallet terpotong.
+                Tapping <span className="font-mono text-[#1E3124]">Connect MWA</span> authorizes
+                Solflare Devnet and displays the connected wallet address.
               </li>
               <li>
-                Ketuk <span className="font-mono text-[#E2E8F0]">Cek Koneksi Voice Proxy</span> mengembalikan status <span className="font-mono text-[#4ADE80]">Connected</span> via USB <span className="font-mono text-[#E2E8F0]">adb reverse</span>.
+                USB <span className="font-mono text-[#1E3124]">adb reverse</span> connects directly
+                to local port 3000 voice proxies.
               </li>
             </ul>
           </div>
@@ -393,34 +401,36 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
       </div>
 
       {/* Section 3: Real /mobile/ Scaffold File Explorer */}
-      <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl overflow-hidden">
-        <div className="p-5 border-b border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white border border-[#E2E6DC] rounded-2xl overflow-hidden shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
+        <div className="p-5 border-b border-[#E9EDE3] flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <FileCode2 className="w-4 h-4 text-[#CCFF00]" aria-hidden="true" />
-              <h3 className="text-base font-semibold text-[#F4F4F5]">
+              <FileCode2 className="w-4 h-4 text-[#356341]" aria-hidden="true" />
+              <h3 className="text-base font-bold text-[#1E3124]">
                 03. Live /mobile/ Expo Custom Dev Build Explorer
               </h3>
             </div>
-            <p className="text-xs text-[#A1A1AA]">
-              {mobileFiles.length} real files generated in <span className="font-mono text-[#F4F4F5]">/mobile</span> · loaded directly from workspace disk
+            <p className="text-xs text-[#526658]">
+              {mobileFiles.length} real files generated in{' '}
+              <span className="font-mono text-[#1E3124]">/mobile</span> · loaded directly from
+              workspace disk
             </p>
           </div>
 
           <div
             role="group"
-            aria-label="Filter kategori file mobile scaffold"
-            className="flex flex-wrap items-center gap-1 p-1 bg-[#111111] border border-white/10 rounded-xl"
+            aria-label="Filter mobile scaffold files by category"
+            className="flex flex-wrap items-center gap-1 p-1 bg-[#EEF3E8] border border-[#DCE4D4] rounded-full"
           >
             {categories.map((cat) => (
               <button
                 key={cat}
                 type="button"
                 onClick={() => setFileCategory(cat)}
-                className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors whitespace-nowrap cursor-pointer ${
                   fileCategory === cat
-                    ? 'bg-[#CCFF00] text-[#0F0F0F]'
-                    : 'text-[#A1A1AA] hover:text-[#F4F4F5]'
+                    ? 'bg-[#356341] text-white'
+                    : 'text-[#526658] hover:text-[#1E3124]'
                 }`}
               >
                 {cat}
@@ -432,8 +442,8 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
         <div className="grid grid-cols-1 lg:grid-cols-12">
           {/* File Sidebar */}
           <aside
-            aria-label="Daftar file scaffold mobile"
-            className="lg:col-span-4 border-b lg:border-b-0 lg:border-r border-white/10 max-h-[540px] overflow-y-auto divide-y divide-white/5"
+            aria-label="Mobile scaffold file list"
+            className="lg:col-span-4 border-b lg:border-b-0 lg:border-r border-[#E9EDE3] max-h-[540px] overflow-y-auto divide-y divide-[#F0F2EC]"
           >
             {filteredFiles.map((file) => {
               const active = activeFile?.id === file.id;
@@ -443,49 +453,47 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
                   type="button"
                   onClick={() => setSelectedFileId(file.id)}
                   className={`w-full text-left px-4 py-3 transition-colors cursor-pointer ${
-                    active
-                      ? 'bg-[#CCFF00]/10 text-[#F4F4F5]'
-                      : 'text-[#D4D4D8] hover:bg-white/5'
+                    active ? 'bg-[#EEF5EA] text-[#1E3124]' : 'text-[#3B4F40] hover:bg-[#FAF9F5]'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2 text-xs">
                     <span
-                      className={`font-mono font-medium truncate ${
-                        active ? 'text-[#CCFF00]' : 'text-[#F4F4F5]'
+                      className={`font-mono font-semibold truncate ${
+                        active ? 'text-[#2E6B40]' : 'text-[#1E3124]'
                       }`}
                     >
                       {file.label}
                     </span>
-                    <span className="text-[11px] font-mono text-[#71717A] shrink-0">
+                    <span className="text-[11px] font-mono text-[#788A7D] shrink-0">
                       {file.stepTag}
                     </span>
                   </div>
-                  <p className="mt-1 text-[11px] text-[#A1A1AA] line-clamp-2">{file.purpose}</p>
+                  <p className="mt-1 text-[11px] text-[#526658] line-clamp-2">{file.purpose}</p>
                 </button>
               );
             })}
           </aside>
 
           {/* Code Viewer */}
-          <div className="lg:col-span-8 flex flex-col bg-[#0F0F0F]">
+          <div className="lg:col-span-8 flex flex-col bg-[#1C2820]">
             {activeFile && (
               <>
-                <div className="px-4 py-3 bg-[#141414] border-b border-white/10 flex flex-wrap items-center justify-between gap-2">
+                <div className="px-4 py-3 bg-[#233228] border-b border-[#2F4135] flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="font-mono text-xs font-semibold text-[#F4F4F5] truncate">
+                    <div className="font-mono text-xs font-semibold text-white truncate">
                       {activeFile.relativePath}
                     </div>
-                    <div className="text-[11px] text-[#A1A1AA]">{activeFile.purpose}</div>
+                    <div className="text-[11px] text-[#B9C9BD]">{activeFile.purpose}</div>
                   </div>
                   <button
                     type="button"
                     onClick={() => void handleCopy(`file-${activeFile.id}`, activeFile.content)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#F4F4F5] bg-[#1A1A1A] hover:bg-[#222222] border border-white/15 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#2E4135] hover:bg-[#384F40] border border-white/15 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     {copiedId === `file-${activeFile.id}` ? (
                       <>
-                        <Check className="w-3.5 h-3.5 text-[#CCFF00]" />
-                        <span className="text-[#CCFF00]">Copied</span>
+                        <Check className="w-3.5 h-3.5 text-[#B6F09C]" />
+                        <span className="text-[#B6F09C]">Copied</span>
                       </>
                     ) : (
                       <>
@@ -495,7 +503,7 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
                     )}
                   </button>
                 </div>
-                <pre className="p-4 text-xs font-mono text-[#E4E4E7] leading-relaxed overflow-auto max-h-[480px]">
+                <pre className="p-4 text-xs font-mono text-[#EEF3EC] leading-relaxed overflow-auto max-h-[480px]">
                   <code>{activeFile.content}</code>
                 </pre>
               </>
@@ -504,25 +512,26 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
         </div>
       </div>
 
-      {/* Section 4: 4-Step Full-Scope Hackathon Plan vs Ultra-Lean 3-Item Production Roadmap */}
-      <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl p-5 sm:p-6 space-y-5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
+      {/* Section 4: Hackathon Plan vs Production Roadmap */}
+      <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 sm:p-6 space-y-5 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#E9EDE3]">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-[#CCFF00]" aria-hidden="true" />
-              <h3 className="text-base font-semibold text-[#F4F4F5]">
-                04. 4-Step Hackathon Build Sequence vs Ultra-Lean Production Roadmap
+              <Layers className="w-4 h-4 text-[#356341]" aria-hidden="true" />
+              <h3 className="text-base font-bold text-[#1E3124]">
+                04. Hackathon Build Sequence vs Production Roadmap
               </h3>
             </div>
-            <p className="text-xs text-[#A1A1AA]">
-              {hackathonCount} full hackathon build steps (including Eagle Voiceprint &amp; Anchor PDA) · only {roadmapCount} post-hackathon roadmap items
+            <p className="text-xs text-[#526658]">
+              {hackathonCount} full hackathon build steps · {roadmapCount} post-hackathon roadmap
+              items
             </p>
           </div>
 
           <div
             role="group"
-            aria-label="Filter cakupan hackathon vs production roadmap"
-            className="flex flex-wrap items-center gap-1 p-1 bg-[#111111] border border-white/10 rounded-xl max-w-full self-start"
+            aria-label="Filter hackathon vs roadmap scope"
+            className="flex flex-wrap items-center gap-1 p-1 bg-[#EEF3E8] border border-[#DCE4D4] rounded-full max-w-full self-start"
           >
             {(
               [
@@ -536,10 +545,10 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
                 type="button"
                 data-testid={`scope-filter-${opt.id}`}
                 onClick={() => setScopeFilter(opt.id)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors whitespace-nowrap cursor-pointer ${
                   scopeFilter === opt.id
-                    ? 'bg-[#CCFF00] text-[#0F0F0F]'
-                    : 'text-[#A1A1AA] hover:text-[#F4F4F5]'
+                    ? 'bg-[#356341] text-white'
+                    : 'text-[#526658] hover:text-[#1E3124]'
                 }`}
               >
                 {opt.label}
@@ -548,36 +557,36 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
           </div>
         </div>
 
-        <div className="divide-y divide-[#1E2329]">
+        <div className="divide-y divide-[#ECEFE6]">
           {visibleScope.map((item) => {
             const isRoadmap = item.bucket === 'roadmap';
             const isDone = item.status === 'Scaffolded (Step 1)';
             return (
               <div key={item.id} className="py-4 first:pt-0 last:pb-0 space-y-1.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold text-[#F8FAFC]">{item.title}</h3>
+                  <h3 className="text-sm font-bold text-[#1E3124]">{item.title}</h3>
                   <div className="flex items-center gap-2 text-xs font-mono">
-                    <span className={isRoadmap ? 'text-[#60A5FA]' : 'text-[#4ADE80]'}>
+                    <span className={isRoadmap ? 'text-[#1D4ED8]' : 'text-[#2E6B40]'}>
                       {item.stageLabel}
                     </span>
-                    <span aria-hidden="true" className="text-[#475569]">
+                    <span aria-hidden="true" className="text-[#B8C4B2]">
                       ·
                     </span>
                     <span
                       className={
                         isDone
-                          ? 'text-[#22C55E]'
+                          ? 'text-[#2E6B40]'
                           : isRoadmap
-                            ? 'text-[#93C5FD]'
-                            : 'text-[#FBBF24]'
+                            ? 'text-[#1D4ED8]'
+                            : 'text-[#B45309]'
                       }
                     >
                       {item.status}
                     </span>
                   </div>
                 </div>
-                <p className="text-xs text-[#CBD5E1] leading-relaxed">{item.detail}</p>
-                <p className="text-[11px] font-mono text-[#64748B]">
+                <p className="text-xs text-[#526658] leading-relaxed">{item.detail}</p>
+                <p className="text-[11px] font-mono text-[#788A7D]">
                   Verification: {item.verification}
                 </p>
               </div>

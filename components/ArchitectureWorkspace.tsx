@@ -22,15 +22,15 @@ export default function ArchitectureWorkspace() {
 
   return (
     <section aria-label="2026 SDK Migration and Architecture Blueprint" className="space-y-8">
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-white/10">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-[#E2E6DC]">
         <div className="space-y-2 max-w-2xl">
-          <p className="text-xs font-medium text-[#CCFF00]">
+          <p className="text-xs font-semibold text-[#457249]">
             accessible-signing Architecture · Verified 2026 SDK Matrix · Voice Identifies, Hardware Authorizes
           </p>
-          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#F4F4F5] [text-wrap:balance]">
+          <h2 className="font-display text-2xl sm:text-3xl font-black tracking-tight text-[#1E3124] [text-wrap:balance]">
             accessible-signing &amp; 2026 SDK Architecture Blueprint
           </h2>
-          <p className="text-sm sm:text-[15px] text-[#A1A1AA] leading-relaxed">
+          <p className="text-sm sm:text-[15px] text-[#526658] leading-relaxed">
             Reusable spoken transaction verification architecture verified against Solana Mobile MWA 2.0,
             @solana/kit, ElevenLabs Scribe v2 &amp; Flash v2.5, Jupiter Swap V2 (Quote-Only), Expo Audio,
             optional Picovoice Eagle, and Anchor ContactRegistry PDA.
@@ -40,15 +40,15 @@ export default function ArchitectureWorkspace() {
         <div
           role="group"
           aria-label="Solana SDK Track"
-          className="inline-flex items-center p-1 bg-[#1A1A1A] border border-white/10 rounded-xl shrink-0 self-start lg:self-end"
+          className="inline-flex items-center p-1 bg-[#EEF3E8] border border-[#DCE4D4] rounded-full shrink-0 self-start lg:self-end"
         >
           <button
             type="button"
             onClick={() => setTrack('kit')}
-            className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+            className={`px-3.5 py-2 text-xs font-semibold rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
               track === 'kit'
-                ? 'bg-[#CCFF00] text-[#0F0F0F]'
-                : 'text-[#A1A1AA] hover:text-[#F4F4F5]'
+                ? 'bg-[#356341] text-white'
+                : 'text-[#526658] hover:text-[#1E3124]'
             }`}
           >
             Track A: @solana/kit (Recommended)
@@ -56,10 +56,10 @@ export default function ArchitectureWorkspace() {
           <button
             type="button"
             onClick={() => setTrack('web3v1')}
-            className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+            className={`px-3.5 py-2 text-xs font-semibold rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
               track === 'web3v1'
-                ? 'bg-[#CCFF00] text-[#0F0F0F]'
-                : 'text-[#A1A1AA] hover:text-[#F4F4F5]'
+                ? 'bg-[#356341] text-white'
+                : 'text-[#526658] hover:text-[#1E3124]'
             }`}
           >
             Track B: @solana/web3.js v1
@@ -69,43 +69,43 @@ export default function ArchitectureWorkspace() {
 
       {/* Track Summary Comparison Strip */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl p-5 space-y-1.5">
-          <div className="flex items-center justify-between text-xs text-[#A1A1AA]">
+        <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 space-y-1.5 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
+          <div className="flex items-center justify-between text-xs text-[#526658]">
             <span>Active Solana Track</span>
-            <Layers className="w-4 h-4 text-[#CCFF00]" aria-hidden="true" />
+            <Layers className="w-4 h-4 text-[#356341]" aria-hidden="true" />
           </div>
-          <p className="text-base font-semibold text-[#F4F4F5]">
+          <p className="text-base font-bold text-[#1E3124]">
             {track === 'kit' ? '@solana/kit + Codama' : '@solana/web3.js v1.99 + Anchor'}
           </p>
-          <p className="text-xs text-[#A1A1AA] leading-relaxed">
+          <p className="text-xs text-[#526658] leading-relaxed">
             {track === 'kit'
               ? 'Lightest React Native bundle via @wallet-ui/react-native-kit and @solana-program/token.'
               : 'Drop-in compatibility with @anchor-lang/core IDL and legacy Anchor tutorials.'}
           </p>
         </div>
 
-        <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl p-5 space-y-1.5">
-          <div className="flex items-center justify-between text-xs text-[#A1A1AA]">
+        <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 space-y-1.5 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
+          <div className="flex items-center justify-between text-xs text-[#526658]">
             <span>Voice Latency Target</span>
-            <Zap className="w-4 h-4 text-[#CCFF00]" aria-hidden="true" />
+            <Zap className="w-4 h-4 text-[#356341]" aria-hidden="true" />
           </div>
-          <p className="text-base font-semibold text-[#F4F4F5] font-mono tabular-nums">
+          <p className="text-base font-bold text-[#1E3124] font-mono tabular-nums">
             4.0s – 6.9s E2E
           </p>
-          <p className="text-xs text-[#A1A1AA] leading-relaxed">
+          <p className="text-xs text-[#526658] leading-relaxed">
             Upgrading TTS from multilingual_v2 to eleven_flash_v2_5 saves ~900ms per voice prompt.
           </p>
         </div>
 
-        <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl p-5 space-y-1.5">
-          <div className="flex items-center justify-between text-xs text-[#A1A1AA]">
+        <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 space-y-1.5 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
+          <div className="flex items-center justify-between text-xs text-[#526658]">
             <span>Critical Mobile Constraint</span>
-            <ShieldAlert className="w-4 h-4 text-[#F59E0B]" aria-hidden="true" />
+            <ShieldAlert className="w-4 h-4 text-[#B45309]" aria-hidden="true" />
           </div>
-          <p className="text-base font-semibold text-[#F4F4F5]">
+          <p className="text-base font-bold text-[#1E3124]">
             Custom Dev Client Mandatory
           </p>
-          <p className="text-xs text-[#A1A1AA] leading-relaxed">
+          <p className="text-xs text-[#526658] leading-relaxed">
             Expo Go cannot invoke Android MWA Intents. Build locally with npx expo run:android.
           </p>
         </div>
@@ -118,50 +118,50 @@ export default function ArchitectureWorkspace() {
             track === 'web3v1' && entry.snippetWeb3v1 ? entry.snippetWeb3v1 : entry.snippetKit;
           const impactColor =
             entry.impact === 'Breaking'
-              ? 'text-[#F87171]'
+              ? 'text-[#B91C1C]'
               : entry.impact === 'Security'
-                ? 'text-[#FBBF24]'
-                : 'text-[#CCFF00]';
+                ? 'text-[#B45309]'
+                : 'text-[#2E6B40]';
 
           return (
             <article
               key={entry.id}
-              className="bg-[#1A1A1A] border border-white/10 rounded-2xl overflow-hidden"
+              className="bg-white border border-[#E2E6DC] rounded-2xl overflow-hidden shadow-[0_6px_20px_rgba(30,49,36,0.04)]"
             >
               <div className="p-5 sm:p-6 grid grid-cols-1 xl:grid-cols-12 gap-6">
                 <div className="xl:col-span-5 space-y-4">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-xs text-[#A1A1AA]">
+                    <div className="flex items-center gap-2 text-xs text-[#526658]">
                       <span className="font-mono tabular-nums">0{idx + 1}.</span>
                       <span>{entry.layer}</span>
                       <span aria-hidden="true">·</span>
-                      <span className={`font-medium ${impactColor}`}>{entry.impact} Update</span>
+                      <span className={`font-semibold ${impactColor}`}>{entry.impact} Update</span>
                     </div>
-                    <h3 className="text-lg font-semibold text-[#F4F4F5]">{entry.layer}</h3>
+                    <h3 className="text-lg font-bold text-[#1E3124]">{entry.layer}</h3>
                   </div>
 
                   <div className="space-y-2 text-xs">
-                    <div className="bg-[#111111] border border-white/10 rounded-xl p-3 space-y-1">
-                      <div className="text-[#71717A]">Previous Draft Spec</div>
-                      <div className="font-mono text-[#A1A1AA] line-through decoration-[#71717A]/70 break-words">
+                    <div className="bg-[#FAF9F5] border border-[#E6EAE0] rounded-xl p-3 space-y-1">
+                      <div className="text-[#788A7D]">Previous Draft Spec</div>
+                      <div className="font-mono text-[#687A6D] line-through decoration-[#9BA99F] break-words">
                         {entry.oldSpec}
                       </div>
                     </div>
-                    <div className="flex justify-center text-[#71717A]" aria-hidden="true">
+                    <div className="flex justify-center text-[#8C9C91]" aria-hidden="true">
                       <ArrowRight className="w-3.5 h-3.5 rotate-90" />
                     </div>
-                    <div className="bg-[#111111] border border-[#CCFF00]/30 rounded-xl p-3 space-y-1">
-                      <div className="text-[#CCFF00]">Verified 2026 Target</div>
-                      <div className="font-mono text-[#F4F4F5] break-words">
+                    <div className="bg-[#F2F7EE] border border-[#C6DBC2] rounded-xl p-3 space-y-1">
+                      <div className="text-[#2E6B40] font-semibold">Verified 2026 Target</div>
+                      <div className="font-mono text-[#1E3124] break-words">
                         {entry.verified2026}
                       </div>
                     </div>
                   </div>
 
-                  <p className="text-sm text-[#A1A1AA] leading-relaxed">{entry.summary}</p>
+                  <p className="text-sm text-[#526658] leading-relaxed">{entry.summary}</p>
 
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs text-[#A1A1AA]">
+                    <div className="flex items-center justify-between text-xs text-[#526658]">
                       <span className="inline-flex items-center gap-1.5">
                         <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
                         Install Command
@@ -169,13 +169,13 @@ export default function ArchitectureWorkspace() {
                       <button
                         type="button"
                         onClick={() => handleCopy(`${entry.id}-cmd`, entry.installCmd)}
-                        className="inline-flex items-center gap-1 text-xs text-[#A1A1AA] hover:text-[#F4F4F5] transition-colors cursor-pointer whitespace-nowrap"
+                        className="inline-flex items-center gap-1 text-xs text-[#526658] hover:text-[#1E3124] transition-colors cursor-pointer whitespace-nowrap"
                         aria-label={`Copy install command for ${entry.layer}`}
                       >
                         {copiedId === `${entry.id}-cmd` ? (
                           <>
-                            <Check className="w-3.5 h-3.5 text-[#CCFF00]" />
-                            <span className="text-[#CCFF00]">Copied</span>
+                            <Check className="w-3.5 h-3.5 text-[#2E6B40]" />
+                            <span className="text-[#2E6B40] font-semibold">Copied</span>
                           </>
                         ) : (
                           <>
@@ -185,14 +185,14 @@ export default function ArchitectureWorkspace() {
                         )}
                       </button>
                     </div>
-                    <pre className="bg-[#0F0F0F] border border-white/10 rounded-xl p-3 text-xs font-mono text-[#CCFF00] overflow-x-auto">
+                    <pre className="bg-[#1C2820] border border-[#2B3A30] rounded-xl p-3 text-xs font-mono text-[#CFECC8] overflow-x-auto">
                       <code>{entry.installCmd}</code>
                     </pre>
                   </div>
                 </div>
 
                 <div className="xl:col-span-7 flex flex-col">
-                  <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#111111] border border-white/10 border-b-0 rounded-t-xl text-xs text-[#A1A1AA]">
+                  <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#233228] border border-[#2B3A30] border-b-0 rounded-t-xl text-xs text-[#C7D6CA]">
                     <span className="font-mono">
                       {track === 'web3v1' && entry.snippetWeb3v1
                         ? 'Reference Pattern · Web3.js v1'
@@ -201,13 +201,13 @@ export default function ArchitectureWorkspace() {
                     <button
                       type="button"
                       onClick={() => handleCopy(`${entry.id}-code`, activeSnippet)}
-                      className="inline-flex items-center gap-1.5 text-xs text-[#A1A1AA] hover:text-[#F4F4F5] transition-colors cursor-pointer whitespace-nowrap"
+                      className="inline-flex items-center gap-1.5 text-xs text-[#C7D6CA] hover:text-white transition-colors cursor-pointer whitespace-nowrap"
                       aria-label={`Copy code snippet for ${entry.layer}`}
                     >
                       {copiedId === `${entry.id}-code` ? (
                         <>
-                          <Check className="w-3.5 h-3.5 text-[#CCFF00]" />
-                          <span className="text-[#CCFF00]">Copied</span>
+                          <Check className="w-3.5 h-3.5 text-[#B6F09C]" />
+                          <span className="text-[#B6F09C]">Copied</span>
                         </>
                       ) : (
                         <>
@@ -217,7 +217,7 @@ export default function ArchitectureWorkspace() {
                       )}
                     </button>
                   </div>
-                  <pre className="flex-1 bg-[#0F0F0F] border border-white/10 rounded-b-xl p-4 text-xs font-mono text-[#E4E4E7] leading-relaxed overflow-x-auto">
+                  <pre className="flex-1 bg-[#1C2820] border border-[#2B3A30] rounded-b-xl p-4 text-xs font-mono text-[#EEF3EC] leading-relaxed overflow-x-auto">
                     <code>{activeSnippet}</code>
                   </pre>
                 </div>

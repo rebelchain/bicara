@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
-import { Bricolage_Grotesque, Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
+import { Grandstander, Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 
-const bricolageGrotesque = Bricolage_Grotesque({
+const grandstander = Grandstander({
   subsets: ['latin'],
-  weight: ['600', '700', '800'],
-  variable: '--font-bricolage',
+  variable: '--font-grandstander',
   display: 'swap',
 });
 
@@ -24,20 +23,20 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Bicara — Spoken Transaction Verification for Solana',
+  title: 'Bicara — Speak Before You Sign on Solana',
   description:
-    'Before you sign anything on Solana, Bicara reads exactly what will happen — out loud. Built blind-first: proven to work with zero screen, so it works for everyone.',
+    'Before you sign anything on Solana, Bicara reads every recipient, amount, and fee out loud. Built blind-first for calm, eyes-free clarity.',
   openGraph: {
-    title: 'Bicara — Spoken Transaction Verification for Solana',
+    title: 'Bicara — Speak Before You Sign on Solana',
     description:
-      'Before you sign anything on Solana, Bicara reads exactly what will happen — out loud. Built blind-first: proven to work with zero screen, so it works for everyone.',
+      'Before you sign anything on Solana, Bicara reads every recipient, amount, and fee out loud. Built blind-first for calm, eyes-free clarity.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Bicara — Spoken Transaction Verification for Solana',
+    title: 'Bicara — Speak Before You Sign on Solana',
     description:
-      'Before you sign anything on Solana, Bicara reads exactly what will happen — out loud. Built blind-first: proven to work with zero screen, so it works for everyone.',
+      'Before you sign anything on Solana, Bicara reads every recipient, amount, and fee out loud. Built blind-first for calm, eyes-free clarity.',
   },
 };
 
@@ -49,9 +48,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${bricolageGrotesque.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable}`}
+      className={`${grandstander.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable}`}
     >
-      <body suppressHydrationWarning className="min-h-screen bg-[#0F0F0F] text-[#F4F4F5]">
+      <body suppressHydrationWarning className="min-h-screen bg-[#FAF9F5] text-[#1E3124]">
         {children}
       </body>
     </html>

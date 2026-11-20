@@ -91,6 +91,7 @@ interface PrototypeWorkspaceProps {
   onCompleteTransfer: (tx: TransactionRecord, nextBalance: number, recipientId: string) => void;
   onResetBalances: () => void;
   demoTriggerNonce: number;
+  demoCommand?: string;
 }
 
 const DEMO_UTTERANCES = [
@@ -130,6 +131,7 @@ export default function PrototypeWorkspace({
   onCompleteTransfer,
   onResetBalances,
   demoTriggerNonce,
+  demoCommand = 'Send 5 USDC to Ahmad',
 }: PrototypeWorkspaceProps) {
   const [phoneTab, setPhoneTab] = useState<PhoneTabId>('home');
   const [voiceStage, setVoiceStage] = useState<VoiceStage>('idle');
@@ -174,7 +176,7 @@ export default function PrototypeWorkspace({
   });
 
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
-  const lastHandledDemoRef = useRef<number>(demoTriggerNonce);
+  const lastHandledDemoRef = useRef<number>(0);
 
   const speakOut = useCallback(
     (text: string, haptic?: HapticPatternId) => {
@@ -539,13 +541,13 @@ export default function PrototypeWorkspace({
     ]
   );
 
-  // Triggered by the Top Bar "Run Demo Flow" CTA
+  // Triggered by the Landing Live Preview cards or Demo "Run Sample Send" CTA
   useEffect(() => {
-    if (demoTriggerNonce !== lastHandledDemoRef.current) {
+    if (demoTriggerNonce > 0 && demoTriggerNonce !== lastHandledDemoRef.current) {
       lastHandledDemoRef.current = demoTriggerNonce;
-      void processTranscript('Send 5 USDC to Ahmad');
+      void processTranscript(demoCommand);
     }
-  }, [demoTriggerNonce, processTranscript]);
+  }, [demoTriggerNonce, demoCommand, processTranscript]);
 
   const handleMicToggle = () => {
     if (voiceStage === 'recording') {
@@ -722,12 +724,12 @@ export default function PrototypeWorkspace({
   return (
     <section aria-label="Interactive Bicara Solana Mobile Prototype" className="space-y-5">
       {/* Compact Hero / Context Header */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 pb-4 border-b border-white/10">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 pb-4 border-b border-[#E2E6DC]">
         <div className="space-y-1.5 max-w-2xl">
-          <p className="text-xs font-medium text-[#CCFF00]">
+          <p className="text-xs font-semibold text-[#457249]">
             Interactive Seeker Simulator · Built Blind-First for Everyone · Voice Identifies, Hardware Authorizes
           </p>
-          <h3 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#F4F4F5] [text-wrap:balance]">
+          <h3 className="font-display text-xl sm:text-2xl font-black tracking-tight text-[#1E3124] [text-wrap:balance]">
             Spoken Transaction Verification Sandbox
           </h3>
         </div>
@@ -737,15 +739,15 @@ export default function PrototypeWorkspace({
           <div
             role="group"
             aria-label="Intent Parser Engine"
-            className="inline-flex items-center p-1 bg-[#1A1A1A] border border-white/10 rounded-xl"
+            className="inline-flex items-center p-1 bg-[#EEF3E8] border border-[#DCE4D4] rounded-full"
           >
             <button
               type="button"
               onClick={() => setNluMode('fallback')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 nluMode === 'fallback'
-                  ? 'bg-[#CCFF00] text-[#0F0F0F]'
-                  : 'text-[#A1A1AA] hover:text-[#F4F4F5]'
+                  ? 'bg-[#356341] text-white'
+                  : 'text-[#526658] hover:text-[#1E3124]'
               }`}
             >
               Offline Fallback
@@ -753,10 +755,10 @@ export default function PrototypeWorkspace({
             <button
               type="button"
               onClick={() => setNluMode('ai')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 nluMode === 'ai'
-                  ? 'bg-[#CCFF00] text-[#0F0F0F]'
-                  : 'text-[#A1A1AA] hover:text-[#F4F4F5]'
+                  ? 'bg-[#356341] text-white'
+                  : 'text-[#526658] hover:text-[#1E3124]'
               }`}
             >
               Gemini AI NLU
@@ -768,16 +770,16 @@ export default function PrototypeWorkspace({
             onClick={() => setTtsEnabled((v) => !v)}
             aria-pressed={ttsEnabled}
             aria-label={ttsEnabled ? 'Mute TTS voice' : 'Enable TTS voice'}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-[#F4F4F5] bg-[#1A1A1A] border border-white/10 hover:border-[#CCFF00]/40 rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#1E3124] bg-white border border-[#D4DDD0] hover:border-[#356341] rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             {ttsEnabled ? (
               <>
-                <Volume2 className="w-3.5 h-3.5 text-[#CCFF00]" />
+                <Volume2 className="w-3.5 h-3.5 text-[#356341]" />
                 <span>TTS On</span>
               </>
             ) : (
               <>
-                <VolumeX className="w-3.5 h-3.5 text-[#71717A]" />
+                <VolumeX className="w-3.5 h-3.5 text-[#788A7D]" />
                 <span>TTS Muted</span>
               </>
             )}
@@ -798,7 +800,7 @@ export default function PrototypeWorkspace({
               setScreenCurtain(false);
             }}
             aria-label="Reset Devnet demo balances"
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-[#A1A1AA] hover:text-[#F4F4F5] bg-[#1A1A1A] border border-white/10 rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#526658] hover:text-[#1E3124] bg-white border border-[#D4DDD0] rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Reset Devnet</span>
@@ -807,17 +809,17 @@ export default function PrototypeWorkspace({
       </div>
 
       {/* Eyes-Free Accessibility & Speaker Verification Simulator Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#1A1A1A] border border-white/10 rounded-2xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white border border-[#E2E6DC] rounded-2xl shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 text-xs text-[#A1A1AA]">
-            <Fingerprint className="w-4 h-4 text-[#CCFF00]" aria-hidden="true" />
-            <span className="font-medium text-[#F4F4F5]">Speaker Voiceprint:</span>
+          <div className="flex items-center gap-2 text-xs text-[#526658]">
+            <Fingerprint className="w-4 h-4 text-[#356341]" aria-hidden="true" />
+            <span className="font-semibold text-[#1E3124]">Speaker Voiceprint:</span>
           </div>
 
           <div
             role="group"
             aria-label="Speaker Identity Simulation"
-            className="inline-flex items-center p-1 bg-[#0F0F0F] border border-white/10 rounded-xl"
+            className="inline-flex items-center p-1 bg-[#EEF3E8] border border-[#DCE4D4] rounded-full"
           >
             <button
               type="button"
@@ -826,10 +828,10 @@ export default function PrototypeWorkspace({
                 setActiveSpeaker('owner');
                 setLastVoiceprintResult(null);
               }}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors whitespace-nowrap cursor-pointer ${
                 activeSpeaker === 'owner'
-                  ? 'bg-[#CCFF00] text-[#0F0F0F]'
-                  : 'text-[#A1A1AA] hover:text-[#F4F4F5]'
+                  ? 'bg-[#356341] text-white'
+                  : 'text-[#526658] hover:text-[#1E3124]'
               }`}
             >
               User A (Owner · Sim)
@@ -841,10 +843,10 @@ export default function PrototypeWorkspace({
                 setActiveSpeaker('impostor');
                 setLastVoiceprintResult(null);
               }}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors whitespace-nowrap cursor-pointer ${
                 activeSpeaker === 'impostor'
-                  ? 'bg-[#EF4444] text-white'
-                  : 'text-[#A1A1AA] hover:text-[#F4F4F5]'
+                  ? 'bg-[#DC2626] text-white'
+                  : 'text-[#526658] hover:text-[#1E3124]'
               }`}
             >
               Impostor B (Unrecognized · Sim)
@@ -860,9 +862,9 @@ export default function PrototypeWorkspace({
               setScreenCurtain(false);
               setShowOnboarding(true);
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-[#F4F4F5] bg-[#111111] hover:bg-white/5 border border-white/10 hover:border-[#CCFF00]/50 rounded-xl transition-colors whitespace-nowrap cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#1E3124] bg-[#FAF9F5] hover:bg-[#EEF3E8] border border-[#D4DDD0] rounded-full transition-colors whitespace-nowrap cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-[#CCFF00]" aria-hidden="true" />
+            <Sparkles className="w-3.5 h-3.5 text-[#356341]" aria-hidden="true" />
             <span>Voice Onboarding</span>
           </button>
 
@@ -880,10 +882,10 @@ export default function PrototypeWorkspace({
                 );
               }
             }}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border transition-colors whitespace-nowrap cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-full border transition-colors whitespace-nowrap cursor-pointer ${
               eyesFreeMode
-                ? 'bg-[#CCFF00]/10 border-[#CCFF00]/45 text-[#CCFF00]'
-                : 'bg-[#111111] border-white/10 text-[#A1A1AA] hover:text-[#F4F4F5]'
+                ? 'bg-[#EEF5EA] border-[#B4D0AF] text-[#2E6B40]'
+                : 'bg-[#FAF9F5] border-[#D4DDD0] text-[#526658] hover:text-[#1E3124]'
             }`}
           >
             <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
@@ -905,10 +907,10 @@ export default function PrototypeWorkspace({
                 );
               }
             }}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border transition-colors whitespace-nowrap cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-full border transition-colors whitespace-nowrap cursor-pointer ${
               screenCurtain
-                ? 'bg-[#3B82F6]/15 border-[#3B82F6]/60 text-[#93C5FD]'
-                : 'bg-[#111111] border-white/10 text-[#F4F4F5] hover:border-white/25'
+                ? 'bg-[#1E3124] border-[#1E3124] text-white'
+                : 'bg-[#FAF9F5] border-[#D4DDD0] text-[#1E3124] hover:border-[#356341]'
             }`}
           >
             {screenCurtain ? (
@@ -923,9 +925,9 @@ export default function PrototypeWorkspace({
 
       {/* Main 12-Column Split: Seeker Phone Simulator (5 cols) + Live Pipeline & Two-Phone Mirror (7 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* LEFT COLUMN: Phone A — Bicara Seeker Mobile Simulator */}
+        {/* LEFT COLUMN: Phone A — Bicara Seeker Mobile Simulator (High-Contrast Dark OLED Device Preview) */}
         <div className="lg:col-span-5 flex flex-col items-center">
-          <div className="w-full max-w-[390px] bg-[#0F0F0F] border border-white/15 rounded-[32px] overflow-hidden shadow-2xl shadow-black/70 flex flex-col h-[710px] relative">
+          <div className="w-full max-w-[390px] bg-[#0F0F0F] border-4 border-[#1E3124] rounded-[36px] overflow-hidden shadow-[0_24px_60px_rgba(30,49,36,0.2)] flex flex-col h-[710px] relative">
             {/* Phone Status Strip */}
             <div className="px-5 pt-3 pb-2 flex items-center justify-between gap-2 text-[11px] font-mono text-[#71717A] border-b border-white/10">
               <span className="whitespace-nowrap">Seeker · MWA</span>
@@ -1438,17 +1440,17 @@ export default function PrototypeWorkspace({
         {/* RIGHT COLUMN: Voice Utterance Simulator, Phone B Mirror & Live Pipeline */}
         <div className="lg:col-span-7 space-y-5">
           {/* Quick Voice Scenarios + Custom Input */}
-          <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl p-5 space-y-4">
+          <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 space-y-4 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h4 className="text-sm font-semibold text-[#F4F4F5]">
+                <h4 className="text-sm font-bold text-[#1E3124]">
                   Eyes-Free Voice Command Simulator
                 </h4>
-                <p className="text-xs text-[#A1A1AA]">
+                <p className="text-xs text-[#526658]">
                   Test spoken navigation, balance queries, voice confirmation, and Voiceprint blocking
                 </p>
               </div>
-              <span className="text-xs font-mono text-[#71717A]">{metrics.engineLabel}</span>
+              <span className="text-xs font-mono text-[#788A7D]">{metrics.engineLabel}</span>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -1462,12 +1464,12 @@ export default function PrototypeWorkspace({
                     onClick={() => void processTranscript(item.text)}
                     className={`px-3 py-2 text-xs text-left rounded-xl border transition-colors cursor-pointer ${
                       highlightConfirm
-                        ? 'bg-[#CCFF00]/15 border-[#CCFF00] text-[#CCFF00]'
-                        : 'bg-[#111111] hover:bg-white/5 border-white/10 hover:border-[#CCFF00]/50'
+                        ? 'bg-[#EEF5EA] border-[#356341] text-[#2E6B40]'
+                        : 'bg-[#FAF9F5] hover:bg-[#EEF3E8] border-[#E2E6DC] hover:border-[#B4D0AF]'
                     }`}
                   >
-                    <span className="block text-[10px] text-[#71717A]">{item.label}</span>
-                    <span className={highlightConfirm ? 'text-[#CCFF00] font-semibold' : 'text-[#F4F4F5]'}>
+                    <span className="block text-[10px] text-[#788A7D]">{item.label}</span>
+                    <span className={highlightConfirm ? 'text-[#2E6B40] font-bold' : 'text-[#1E3124] font-medium'}>
                       &ldquo;{item.text}&rdquo;
                     </span>
                   </button>
@@ -1485,11 +1487,11 @@ export default function PrototypeWorkspace({
                 value={customCommand}
                 onChange={(e) => setCustomCommand(e.target.value)}
                 placeholder='Try: "Check balance", "Open contacts", or "Send 5 USDC to Ahmad"'
-                className="flex-1 px-3.5 py-2.5 text-xs bg-[#0F0F0F] border border-white/10 rounded-xl text-[#F4F4F5] placeholder:text-[#71717A] focus:outline-none focus:border-[#CCFF00]"
+                className="flex-1 px-3.5 py-2.5 text-xs bg-[#FAF9F5] border border-[#D8E0D2] rounded-xl text-[#1E3124] placeholder:text-[#788A7D] focus:outline-none focus:border-[#356341]"
               />
               <button
                 type="submit"
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-[#0F0F0F] bg-[#CCFF00] hover:bg-[#B3E600] rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-[#356341] hover:bg-[#2A5135] rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>Simulate</span>
@@ -1498,21 +1500,21 @@ export default function PrototypeWorkspace({
           </div>
 
           {/* Two-Phone Demo Mirror (Phone B — Recipient Wallet) */}
-          <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl p-5 space-y-3">
+          <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 space-y-3 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Smartphone className="w-4 h-4 text-[#CCFF00]" aria-hidden="true" />
-                <h4 className="text-sm font-semibold text-[#F4F4F5]">
+                <Smartphone className="w-4 h-4 text-[#356341]" aria-hidden="true" />
+                <h4 className="text-sm font-bold text-[#1E3124]">
                   Phone B: Recipient Wallet Mirror (Two-Phone Demo View)
                 </h4>
               </div>
-              <label className="inline-flex items-center gap-2 text-xs text-[#A1A1AA]">
+              <label className="inline-flex items-center gap-2 text-xs text-[#526658]">
                 <span>Monitor:</span>
                 <select
                   aria-label="Select recipient wallet for Phone B"
                   value={mirrorContact?.id ?? ''}
                   onChange={(e) => setMirrorContactId(e.target.value)}
-                  className="bg-[#0F0F0F] border border-white/10 rounded-lg px-2.5 py-1 text-xs text-[#F4F4F5] focus:outline-none focus:border-[#CCFF00]"
+                  className="bg-[#FAF9F5] border border-[#D8E0D2] rounded-lg px-2.5 py-1 text-xs text-[#1E3124] focus:outline-none focus:border-[#356341]"
                 >
                   {contacts.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -1525,35 +1527,35 @@ export default function PrototypeWorkspace({
 
             {mirrorContact && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-                <div className="p-3 bg-[#111111] border border-white/10 rounded-xl">
-                  <div className="text-[11px] text-[#71717A]">Recipient</div>
-                  <div className="mt-0.5 text-sm font-semibold text-[#F4F4F5]">
+                <div className="p-3 bg-[#FAF9F5] border border-[#E6EAE0] rounded-xl">
+                  <div className="text-[11px] text-[#788A7D]">Recipient</div>
+                  <div className="mt-0.5 text-sm font-bold text-[#1E3124]">
                     {mirrorContact.name}
                   </div>
-                  <div className="font-mono text-[11px] text-[#A1A1AA]">
+                  <div className="font-mono text-[11px] text-[#526658]">
                     {truncateWallet(mirrorContact.wallet, 5, 4)}
                   </div>
                 </div>
-                <div className="p-3 bg-[#111111] border border-white/10 rounded-xl">
-                  <div className="text-[11px] text-[#71717A]">Devnet USDC Balance</div>
+                <div className="p-3 bg-[#FAF9F5] border border-[#E6EAE0] rounded-xl">
+                  <div className="text-[11px] text-[#788A7D]">Devnet USDC Balance</div>
                   <div
                     data-testid="recipient-balance"
-                    className="mt-0.5 text-lg font-bold font-mono tabular-nums text-[#F4F4F5]"
+                    className="mt-0.5 text-lg font-bold font-mono tabular-nums text-[#1E3124]"
                   >
                     {mirrorContact.balanceUsdc.toFixed(2)} USDC
                   </div>
                   {lastDeltaContactId === mirrorContact.id && lastDeltaAmount > 0 && (
-                    <div className="text-[11px] font-mono tabular-nums text-[#CCFF00]">
+                    <div className="text-[11px] font-mono tabular-nums text-[#2E6B40] font-semibold">
                       +{lastDeltaAmount.toFixed(2)} USDC received
                     </div>
                   )}
                 </div>
-                <div className="p-3 bg-[#111111] border border-white/10 rounded-xl">
-                  <div className="text-[11px] text-[#71717A]">On-Chain Status</div>
-                  <div className="mt-0.5 text-xs font-medium text-[#E4E4E7]">
+                <div className="p-3 bg-[#FAF9F5] border border-[#E6EAE0] rounded-xl">
+                  <div className="text-[11px] text-[#788A7D]">On-Chain Status</div>
+                  <div className="mt-0.5 text-xs font-semibold text-[#1E3124]">
                     {mirrorContact.onChain ? 'Registered in ContactRegistry' : 'Supabase Only'}
                   </div>
-                  <div className="font-mono text-[11px] text-[#71717A]">
+                  <div className="font-mono text-[11px] text-[#788A7D]">
                     {mirrorContact.hasUsdcAta ? 'USDC ATA Ready' : 'ATA Init Needed'}
                   </div>
                 </div>
@@ -1562,22 +1564,22 @@ export default function PrototypeWorkspace({
           </div>
 
           {/* Live Architecture Pipeline Inspector */}
-          <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl p-5 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10">
+          <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 space-y-4 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#E9EDE3]">
               <div>
-                <h4 className="text-sm font-semibold text-[#F4F4F5]">
+                <h4 className="text-sm font-bold text-[#1E3124]">
                   Live Pipeline &amp; Payload Inspector
                 </h4>
-                <p className="text-xs text-[#A1A1AA]">
-                  Stage 00 Voiceprint Gate → STT → Unified NLU → Contact PDA → MWA Seed Vault
+                <p className="text-xs text-[#526658]">
+                  Stage 00 Voiceprint Gate → STT → Unified NLU → Contact PDA → MWA Wallet
                 </p>
               </div>
               <div className="text-right font-mono text-xs tabular-nums">
-                <span className="text-[#71717A]">Est. E2E: </span>
-                <span className="text-[#CCFF00] font-semibold">
+                <span className="text-[#788A7D]">Est. E2E: </span>
+                <span className="text-[#2E6B40] font-bold">
                   {totalLatencyMs > 0 ? `${(totalLatencyMs / 1000).toFixed(2)}s` : '—'}
                 </span>
-                <span className="text-[#71717A]"> / 7.0s budget</span>
+                <span className="text-[#788A7D]"> / 7.0s budget</span>
               </div>
             </div>
 
@@ -1588,28 +1590,28 @@ export default function PrototypeWorkspace({
                   data-testid={`pipeline-step-${step.num}`}
                   className={`p-3 rounded-xl border transition-colors ${
                     step.blocked
-                      ? 'bg-[#211214] border-[#EF4444]/60'
+                      ? 'bg-[#FEF2F2] border-[#FECACA]'
                       : step.active
-                        ? 'bg-[#CCFF00]/10 border-[#CCFF00]/60'
+                        ? 'bg-[#EEF5EA] border-[#356341]'
                         : step.done
-                          ? 'bg-[#111111] border-[#CCFF00]/30'
-                          : 'bg-[#111111] border-white/10'
+                          ? 'bg-[#F3F8F1] border-[#C6DBC2]'
+                          : 'bg-[#FAF9F5] border-[#E6EAE0]'
                   }`}
                 >
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-[#F4F4F5]">
-                      <span className="font-mono text-[#71717A] mr-1.5">{step.num}.</span>
+                    <span className="font-semibold text-[#1E3124]">
+                      <span className="font-mono text-[#788A7D] mr-1.5">{step.num}.</span>
                       {step.title}
                     </span>
                     {step.blocked ? (
-                      <ShieldAlert className="w-3.5 h-3.5 text-[#EF4444] shrink-0" aria-hidden="true" />
+                      <ShieldAlert className="w-3.5 h-3.5 text-[#DC2626] shrink-0" aria-hidden="true" />
                     ) : step.done ? (
-                      <ShieldCheck className="w-3.5 h-3.5 text-[#CCFF00] shrink-0" aria-hidden="true" />
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#2E6B40] shrink-0" aria-hidden="true" />
                     ) : null}
                   </div>
                   <p
                     className={`mt-1 text-[11px] font-mono truncate ${
-                      step.blocked ? 'text-[#FCA5A5]' : 'text-[#A1A1AA]'
+                      step.blocked ? 'text-[#991B1B]' : 'text-[#526658]'
                     }`}
                   >
                     {step.detail}
@@ -1621,10 +1623,10 @@ export default function PrototypeWorkspace({
             {/* Structured Payloads Side-by-Side */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
               <div className="space-y-1.5">
-                <div className="text-[11px] font-medium text-[#A1A1AA]">
+                <div className="text-[11px] font-semibold text-[#526658]">
                   Parsed Unified Intent JSON
                 </div>
-                <pre className="bg-[#0F0F0F] border border-white/10 rounded-xl p-3 text-[11px] font-mono text-[#CCFF00] overflow-x-auto min-h-[132px]">
+                <pre className="bg-[#1C2820] border border-[#2B3A30] rounded-xl p-3 text-[11px] font-mono text-[#CFECC8] overflow-x-auto min-h-[132px]">
                   <code>
                     {parsedIntent
                       ? JSON.stringify(parsedIntent, null, 2)
@@ -1634,10 +1636,10 @@ export default function PrototypeWorkspace({
               </div>
 
               <div className="space-y-1.5">
-                <div className="text-[11px] font-medium text-[#A1A1AA]">
+                <div className="text-[11px] font-semibold text-[#526658]">
                   Voiceprint Gate, Haptics &amp; Solana Instruction
                 </div>
-                <pre className="bg-[#0F0F0F] border border-white/10 rounded-xl p-3 text-[11px] font-mono text-[#E4E4E7] overflow-x-auto min-h-[132px]">
+                <pre className="bg-[#1C2820] border border-[#2B3A30] rounded-xl p-3 text-[11px] font-mono text-[#EEF3EC] overflow-x-auto min-h-[132px]">
                   <code>
                     {lastInstruction
                       ? JSON.stringify(
