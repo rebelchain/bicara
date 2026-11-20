@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Linking,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +26,7 @@ import {
   transcribeVoiceRecording,
   type ParsedVoiceIntent,
   type ProxyHealthResponse,
+  type SwapQuoteResponse,
 } from '../../src/services/api';
 import {
   subscribeHaptics,
@@ -44,6 +49,7 @@ import {
   subscribeSpeech,
   type SpeechTelemetry,
 } from '../../src/services/speech';
+import type { DevnetTransactionRecord, VerifiedContact } from '../../src/services/supabase';
 import { EN_UI_COPY, EN_VOICE_SCRIPTS } from '../../src/i18n/en';
 
 interface VoicePipelineLog {
@@ -64,25 +70,49 @@ interface ConfirmedReceiptBanner {
   explorerUrl: string;
 }
 
-export default function EyesFreeHomeScreen() {
+type HomeSurfaceMode = 'visual' | 'eyes-free' | 'tools';
+type SendModalStep = 'recipient' | 'amount';
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
+function formatShortDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return iso;
+  }
+}
+
+export default function BicaraHomeScreen() {
   const router = useRouter();
   const { account, connect, disconnect, signAndSendTransaction } = useMobileWallet();
   const {
     walletAddress,
     balances,
+    solUsdPrice,
     loadingBalances,
     contacts,
     transactions,
     storageMode,
+    pendingSendRecipient,
+    setPendingSendRecipient,
     refreshBalances,
     findContactByName,
     logConfirmedTransaction,
   } = useBicaraStore();
   const recorder = useVoiceRecorder();
 
+  const [surfaceMode, setSurfaceMode] = useState<HomeSurfaceMode>('visual');
+  const [screenCurtain, setScreenCurtain] = useState(false);
+
   const [processing, setProcessing] = useState(false);
   const [signing, setSigning] = useState(false);
-  const [showTools, setShowTools] = useState(false);
   const [lastHaptic, setLastHaptic] = useState<HapticEvent | null>(null);
   const [lastSpeech, setLastSpeech] = useState<SpeechTelemetry | null>(null);
   const [pipelineLog, setPipelineLog] = useState<VoicePipelineLog | null>(null);
@@ -93,6 +123,25 @@ export default function EyesFreeHomeScreen() {
     EN_VOICE_SCRIPTS.onboardingWelcome()
   );
 
+  // Guided Send Flow Modal state (Select Recipient -> Enter Amount -> Pre-Sign Confirm)
+  const [sendModalOpen, setSendModalOpen] = useState(false);
+  const [sendStep, setSendStep] = useState<SendModalStep>('recipient');
+  const [recipientQuery, setRecipientQuery] = useState('');
+  const [selectedRecipient, setSelectedRecipient] = useState<VerifiedContact | null>(null);
+  const [sendAsset, setSendAsset] = useState<'SOL' | 'USDC'>('SOL');
+  const [sendAmountText, setSendAmountText] = useState('');
+  const [preparingPlan, setPreparingPlan] = useState(false);
+  const [sendModalError, setSendModalError] = useState<string | null>(null);
+
+  // Verified Swap Quote Modal state (Jupiter Quote-Only Safe Mode)
+  const [swapModalOpen, setSwapModalOpen] = useState(false);
+  const [swapInputToken, setSwapInputToken] = useState<'USDC' | 'SOL'>('USDC');
+  const [swapAmountText, setSwapAmountText] = useState('10');
+  const [loadingSwap, setLoadingSwap] = useState(false);
+  const [swapResult, setSwapResult] = useState<SwapQuoteResponse | null>(null);
+  const [swapError, setSwapError] = useState<string | null>(null);
+
+  // Diagnostics state
   const [proxyStatus, setProxyStatus] = useState<ProxyHealthResponse | null>(null);
   const [proxyError, setProxyError] = useState<string | null>(null);
   const [checkingProxy, setCheckingProxy] = useState(false);
@@ -111,6 +160,36 @@ export default function EyesFreeHomeScreen() {
   useEffect(() => {
     return subscribeSpeech((evt) => setLastSpeech(evt));
   }, []);
+
+  // Handoff from Contacts tab ("Send ->" button) straight into Guided Send Step 2 (Enter Amount)
+  useEffect(() => {
+    if (!pendingSendRecipient) return;
+    setSelectedRecipient(pendingSendRecipient);
+    setSendStep('amount');
+    setSendAmountText('');
+    setSendModalError(null);
+    setSendModalOpen(true);
+    setSurfaceMode('visual');
+    setPendingSendRecipient(null);
+  }, [pendingSendRecipient, setPendingSendRecipient]);
+
+  const estimatedUsdTotal = useMemo(() => {
+    if (!walletAddress || !balances) return null;
+    const solUsd = solUsdPrice && solUsdPrice > 0 ? balances.sol * solUsdPrice : 0;
+    return balances.usdc + solUsd;
+  }, [walletAddress, balances, solUsdPrice]);
+
+  const filteredContacts = useMemo(() => {
+    const q = recipientQuery.trim().toLowerCase();
+    if (!q) return contacts;
+    return contacts.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.recipientAddress.toLowerCase().includes(q)
+    );
+  }, [contacts, recipientQuery]);
+
+  const recentTransactions = useMemo(() => transactions.slice(0, 3), [transactions]);
 
   const announce = async (
     text: string,
@@ -214,7 +293,7 @@ export default function EyesFreeHomeScreen() {
       const transcript = stt.transcript.trim();
 
       if (!transcript) {
-        const msg = 'No speech detected. Tap anywhere and try speaking again.';
+        const msg = 'No speech detected. Tap to speak and try again.';
         setPipelineError(msg);
         await announce(msg, 'error', true);
         return;
@@ -432,6 +511,153 @@ export default function EyesFreeHomeScreen() {
     }
   };
 
+  // Guided Send Flow handlers
+  const handleOpenSendFlow = () => {
+    void triggerHaptic('tick');
+    setSendModalError(null);
+    setRecipientQuery('');
+    setSelectedRecipient(null);
+    setSendAmountText('');
+    setSendStep('recipient');
+    setSendModalOpen(true);
+  };
+
+  const handleSelectRecipient = (contact: VerifiedContact) => {
+    void triggerHaptic('tick');
+    setSelectedRecipient(contact);
+    setSendModalError(null);
+    setSendAmountText('');
+    setSendStep('amount');
+  };
+
+  const handleApplyPercentage = (pct: number) => {
+    void triggerHaptic('tick');
+    const available = sendAsset === 'SOL' ? (balances?.sol ?? 0) : (balances?.usdc ?? 0);
+    if (available <= 0) {
+      setSendAmountText('0');
+      return;
+    }
+    const usable =
+      sendAsset === 'SOL' && pct === 1 ? Math.max(0, available - 0.002) : available * pct;
+    const formatted = sendAsset === 'SOL' ? usable.toFixed(4) : usable.toFixed(2);
+    setSendAmountText(String(Number(formatted)));
+  };
+
+  const handleReviewGuidedSend = async () => {
+    if (!walletAddress) {
+      setSendModalError('Connect your Solflare Devnet wallet first.');
+      await announce('Connect your Solflare wallet first using the top right button.', 'error', false);
+      return;
+    }
+    if (!selectedRecipient) {
+      setSendModalError('Please choose a verified contact.');
+      return;
+    }
+    const parsedAmount = Number(sendAmountText.replace(',', '.'));
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setSendModalError('Enter a valid amount greater than zero.');
+      await announce('Please enter a valid amount greater than zero.', 'error', false);
+      return;
+    }
+
+    setPreparingPlan(true);
+    setSendModalError(null);
+    try {
+      const plan = await prepareDevnetTransferPlan({
+        senderAddress: walletAddress,
+        recipientName: selectedRecipient.name,
+        recipientAddress: selectedRecipient.recipientAddress,
+        isSavedContact: true,
+        asset: sendAsset,
+        amount: parsedAmount,
+      });
+      setPendingTransfer(plan);
+      setSendModalOpen(false);
+      await announce(plan.spokenSummary, 'confirm', true);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to prepare Devnet transfer plan.';
+      setSendModalError(msg);
+      await announce(msg, 'error', false);
+    } finally {
+      setPreparingPlan(false);
+    }
+  };
+
+  // Verified Swap Quote Modal handlers
+  const handleOpenSwapModal = () => {
+    void triggerHaptic('tick');
+    setSwapError(null);
+    setSwapResult(null);
+    setSwapModalOpen(true);
+  };
+
+  const handleFetchVisualSwapQuote = async () => {
+    const amount = Number(swapAmountText.replace(',', '.'));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setSwapError('Enter an amount greater than zero.');
+      return;
+    }
+    const outputToken = swapInputToken === 'USDC' ? 'SOL' : 'USDC';
+    setLoadingSwap(true);
+    setSwapError(null);
+    try {
+      const res = await fetchSwapQuote(swapInputToken, outputToken, amount);
+      if ('blocked' in res) {
+        setSwapError(res.spokenWarning);
+        await announce(res.spokenWarning, 'error', true);
+      } else {
+        setSwapResult(res);
+        const outText =
+          res.outAmountUi !== null ? String(res.outAmountUi) : 'an estimated amount';
+        const impactAbs = Math.abs(res.priceImpactPct);
+        const impactLevel = impactAbs > 2 ? 'high' : impactAbs > 0.5 ? 'moderate' : 'low';
+        const slippagePct = Number((res.slippageBps / 100).toFixed(2));
+        const spoken =
+          `Swap quote ready. Selling ${amount} ${res.inputSymbol} returns about ${outText} ${res.outputSymbol}. ` +
+          `Price impact is ${impactLevel}. Maximum slippage is ${slippagePct} percent. Quote-only Devnet safe mode is active.`;
+        await announce(spoken, 'confirm', true);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Could not fetch Jupiter swap quote.';
+      setSwapError(msg);
+      await announce(msg, 'error', false);
+    } finally {
+      setLoadingSwap(false);
+    }
+  };
+
+  const handleToggleEyesFree = async () => {
+    if (surfaceMode === 'eyes-free') {
+      setScreenCurtain(false);
+      setSurfaceMode('visual');
+      await announce('Switched to Visual Home.', 'tick', false);
+    } else {
+      setSurfaceMode('eyes-free');
+      await announce(
+        'Eyes-Free mode active. Tap anywhere on screen to speak. Use Screen Curtain at the top to blank the display.',
+        'tick',
+        false
+      );
+    }
+  };
+
+  const handleToggleCurtain = async () => {
+    const next = !screenCurtain;
+    setScreenCurtain(next);
+    await announce(
+      next
+        ? 'Screen Curtain enabled. Display is blacked out. Tap anywhere to speak, or tap the top right corner to restore visuals.'
+        : 'Screen Curtain disabled.',
+      'tick',
+      false
+    );
+  };
+
+  const handleSpeakActivityItem = (tx: DevnetTransactionRecord) => {
+    const line = `Sent ${tx.amount} ${tx.asset} to ${tx.recipientName} on Solana Devnet. Status ${tx.status}. Signature ending ${tx.signature.slice(-4)}.`;
+    void announce(line, 'tick', false);
+  };
+
   const handleTestProxy = async () => {
     setCheckingProxy(true);
     setProxyError(null);
@@ -449,22 +675,136 @@ export default function EyesFreeHomeScreen() {
     }
   };
 
+  const swapOutputToken = swapInputToken === 'USDC' ? 'SOL' : 'USDC';
+
+  // Reusable Pre-Sign TransactionConfirm Card (Layer 2 + Layer 4 + Layer 5)
+  const renderPendingConfirmCard = () => {
+    if (!pendingTransfer) return null;
+    return (
+      <View style={styles.confirmCard}>
+        <View style={styles.confirmTopRow}>
+          <Text style={styles.confirmKicker}>PRE-SIGN SPOKEN VERIFICATION</Text>
+          <Text style={styles.confirmCode}>CODE {pendingTransfer.challengeDigits}</Text>
+        </View>
+        <Text style={styles.confirmHeadline}>
+          Send {pendingTransfer.amount} {pendingTransfer.asset} → {pendingTransfer.recipientName}
+        </Text>
+        <Text style={styles.confirmMeta}>
+          Verified · {truncateAddress(pendingTransfer.recipientAddress, 6, 4)}
+        </Text>
+        <Text style={styles.confirmMeta}>
+          Fee: ~{pendingTransfer.estimatedFeeSol} SOL
+          {pendingTransfer.ataNeedsCreation
+            ? ` + ~${pendingTransfer.ataRentSol.toFixed(5)} SOL ATA rent`
+            : ''}
+        </Text>
+        {pendingTransfer.anomalies.map((warn, idx) => (
+          <Text key={idx} style={styles.anomalyText}>
+            ! {warn}
+          </Text>
+        ))}
+        <Text style={styles.confirmHint}>
+          Tap Speak &amp; say &ldquo;{pendingTransfer.challengeSpoken}&rdquo;, or tap Confirm &amp; Sign below:
+        </Text>
+        <View style={styles.confirmActions}>
+          <Pressable
+            onPress={() => void handleCancelPending()}
+            disabled={signing}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel pending transfer"
+            style={styles.cancelBtn}
+          >
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => void executeMwaTransfer(pendingTransfer)}
+            disabled={signing}
+            accessibilityRole="button"
+            accessibilityLabel="Confirm and sign transaction in Solflare"
+            style={styles.signBtn}
+          >
+            <Text style={styles.signBtnText}>
+              {signing ? 'Signing...' : 'Confirm & Sign'}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  };
+
+  // Full-Screen Curtain Blackout Overlay (MOBILE_SPEC Screen Curtain privacy mode)
+  if (surfaceMode === 'eyes-free' && screenCurtain) {
+    return (
+      <SafeAreaView style={styles.curtainSafe} edges={['top', 'bottom']}>
+        <View style={styles.curtainTopBar}>
+          <Text style={styles.curtainMuted}>Screen Curtain Active</Text>
+          <Pressable
+            onPress={() => void handleToggleCurtain()}
+            accessibilityRole="button"
+            accessibilityLabel="Disable Screen Curtain and restore visual interface"
+            style={styles.curtainExitBtn}
+          >
+            <Text style={styles.curtainExitText}>Show Screen</Text>
+          </Pressable>
+        </View>
+        <Pressable
+          onPress={() => void handleTapAnywhereToggle()}
+          accessibilityRole="button"
+          accessibilityLabel={
+            recorder.isRecording
+              ? 'Listening in Screen Curtain mode. Tap anywhere to send voice command.'
+              : 'Screen Curtain active. Tap anywhere to speak a command.'
+          }
+          style={styles.curtainCanvas}
+        >
+          <Text style={styles.curtainStatus}>
+            {recorder.isRecording
+              ? 'LISTENING...'
+              : signing
+                ? 'SOLFLARE AUTHORIZATION...'
+                : processing
+                  ? 'PROCESSING...'
+                  : 'TAP ANYWHERE TO SPEAK'}
+          </Text>
+        </Pressable>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Compact Top Header */}
+      {/* Compact Brand Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.kicker}>Gate B · Live Solana Devnet</Text>
-          <Text style={styles.brand}>Bicara</Text>
+        <View style={styles.brandRow}>
+          <View style={styles.brandBadge}>
+            <Text style={styles.brandBadgeText}>B</Text>
+          </View>
+          <View>
+            <Text style={styles.brand}>Bicara</Text>
+            <Text style={styles.kicker}>Solana Devnet</Text>
+          </View>
         </View>
         <View style={styles.headerActions}>
           <Pressable
-            onPress={() => setShowTools((prev) => !prev)}
+            onPress={() => {
+              void triggerHaptic('tick');
+              setSurfaceMode((prev) => (prev === 'tools' ? 'visual' : 'tools'));
+            }}
             accessibilityRole="button"
-            accessibilityLabel={showTools ? 'Close diagnostics' : 'Open diagnostics'}
-            style={styles.toolsToggleBtn}
+            accessibilityLabel={surfaceMode === 'tools' ? 'Back to Home' : 'Open diagnostics tools'}
+            style={[
+              styles.toolsToggleBtn,
+              surfaceMode === 'tools' ? styles.toolsToggleBtnActive : undefined,
+            ]}
           >
-            <Text style={styles.toolsToggleText}>{showTools ? 'Canvas' : 'Tools'}</Text>
+            <Text
+              style={[
+                styles.toolsToggleText,
+                surfaceMode === 'tools' ? styles.toolsToggleTextActive : undefined,
+              ]}
+            >
+              {surfaceMode === 'tools' ? 'Home' : 'Tools'}
+            </Text>
           </Pressable>
           <Pressable
             onPress={() => void handleWalletPress()}
@@ -488,126 +828,163 @@ export default function EyesFreeHomeScreen() {
         </View>
       </View>
 
-      {/* Live Devnet Balance & Storage Strip */}
-      <Pressable
-        onPress={() => void refreshBalances()}
-        accessibilityRole="button"
-        accessibilityLabel="Refresh live Solana Devnet balances"
-        style={styles.balanceStrip}
-      >
-        <Text style={styles.balanceText}>
-          {walletAddress
-            ? loadingBalances
-              ? 'Syncing Devnet RPC...'
-              : `${(balances?.sol ?? 0).toFixed(4)} SOL · ${(balances?.usdc ?? 0).toFixed(2)} USDC`
-            : 'Connect Solflare (Devnet) to check balance & send'}
-        </Text>
-        <Text style={styles.storageTag}>
-          {storageMode === 'supabase' ? 'Supabase' : 'Local Cache'}
-        </Text>
-      </Pressable>
-
-      {!showTools ? (
-        /* TRUE Full-Screen Tap-Anywhere Eyes-Free Canvas */
-        <Pressable
-          onPress={() => void handleTapAnywhereToggle()}
-          accessibilityRole="button"
-          accessibilityLabel={
-            recorder.isRecording
-              ? EN_UI_COPY.home.stopRecordingA11y
-              : EN_UI_COPY.home.startRecordingA11y
-          }
-          style={[
-            styles.fullCanvas,
-            recorder.isRecording ? styles.fullCanvasRecording : undefined,
-          ]}
+      {/* SURFACE 1: VISUAL HOME (Aligned to 01-bicara-app-home) */}
+      {surfaceMode === 'visual' ? (
+        <ScrollView
+          contentContainerStyle={styles.visualScroll}
+          showsVerticalScrollIndicator={false}
         >
-          {/* Layer 2/4 Pre-Sign Confirmation Card (only shown when a Devnet transfer awaits approval) */}
-          {pendingTransfer ? (
-            <View style={styles.confirmCard}>
-              <Text style={styles.confirmKicker}>
-                PRE-SIGN TX SUMMARY · LAYER 2 CHALLENGE: {pendingTransfer.challengeDigits}
+          {/* Total Devnet Portfolio Card */}
+          <Pressable
+            onPress={() => void refreshBalances()}
+            accessibilityRole="button"
+            accessibilityLabel="Refresh live Solana Devnet portfolio balance"
+            style={styles.portfolioCard}
+          >
+            <View style={styles.portfolioTopRow}>
+              <Text style={styles.portfolioLabel}>DEVNET PORTFOLIO</Text>
+              <Text style={styles.storageLabel}>
+                {storageMode === 'supabase' ? 'Supabase Sync' : 'Local Cache'}
               </Text>
-              <Text style={styles.confirmHeadline}>
-                Send {pendingTransfer.amount} {pendingTransfer.asset} → {pendingTransfer.recipientName}
-              </Text>
-              <Text style={styles.confirmMeta}>
-                Wallet: {truncateAddress(pendingTransfer.recipientAddress, 6, 4)} · Fee: ~
-                {pendingTransfer.estimatedFeeSol} SOL
-                {pendingTransfer.ataNeedsCreation
-                  ? ` + ~${pendingTransfer.ataRentSol.toFixed(5)} SOL ATA rent`
-                  : ''}
-              </Text>
-              {pendingTransfer.anomalies.map((warn, idx) => (
-                <Text key={idx} style={styles.anomalyText}>
-                  {warn}
+            </View>
+
+            {walletAddress ? (
+              <>
+                <Text style={styles.portfolioUsd}>
+                  {loadingBalances && !balances
+                    ? 'Syncing...'
+                    : estimatedUsdTotal !== null
+                      ? `$${estimatedUsdTotal.toLocaleString('en-US', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}`
+                      : `${(balances?.sol ?? 0).toFixed(4)} SOL`}
                 </Text>
-              ))}
-              <Text style={styles.confirmHint}>
-                Tap canvas &amp; say &ldquo;{pendingTransfer.challengeSpoken}&rdquo;, or tap Confirm below:
-              </Text>
-              <View style={styles.confirmActions}>
-                <Pressable
-                  onPress={() => void handleCancelPending()}
-                  disabled={signing}
-                  accessibilityRole="button"
-                  accessibilityLabel="Cancel pending transfer"
-                  style={styles.cancelBtn}
-                >
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => void executeMwaTransfer(pendingTransfer)}
-                  disabled={signing}
-                  accessibilityRole="button"
-                  accessibilityLabel="Confirm and sign transaction in Solflare"
-                  style={styles.signBtn}
-                >
-                  <Text style={styles.signBtnText}>
-                    {signing ? 'Signing...' : 'Confirm & Sign'}
+                <View style={styles.balanceSplitRow}>
+                  <Text style={styles.balanceToken}>
+                    {(balances?.sol ?? 0).toFixed(4)} SOL
                   </Text>
-                </Pressable>
+                  <Text style={styles.balanceDivider}>·</Text>
+                  <Text style={styles.balanceToken}>
+                    {(balances?.usdc ?? 0).toFixed(2)} USDC
+                  </Text>
+                  <Text style={styles.balanceRefreshHint}>
+                    {loadingBalances ? 'Updating...' : 'Tap to refresh ↻'}
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <View style={styles.disconnectedPortfolio}>
+                <Text style={styles.disconnectedTitle}>Wallet not connected</Text>
+                <Text style={styles.disconnectedSub}>
+                  Tap Connect MWA above to view live Solana Devnet SOL &amp; USDC balances.
+                </Text>
+              </View>
+            )}
+          </Pressable>
+
+          {/* 3-Column Quick Actions (Send, Swap Quote, Eyes-Free) */}
+          <View style={styles.quickActionsGrid}>
+            <Pressable
+              onPress={handleOpenSendFlow}
+              accessibilityRole="button"
+              accessibilityLabel="Send SOL or USDC to a verified contact"
+              style={styles.quickActionTile}
+            >
+              <View style={[styles.quickIconBox, styles.quickIconLime]}>
+                <Text style={styles.quickIconDarkText}>↗</Text>
+              </View>
+              <Text style={styles.quickActionLabel}>Send</Text>
+              <Text style={styles.quickActionSub}>SOL · USDC</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={handleOpenSwapModal}
+              accessibilityRole="button"
+              accessibilityLabel="Get a verified spoken swap quote for USDC and SOL"
+              style={styles.quickActionTile}
+            >
+              <View style={[styles.quickIconBox, styles.quickIconPurple]}>
+                <Text style={styles.quickIconLightText}>⇄</Text>
+              </View>
+              <Text style={styles.quickActionLabel}>Swap Quote</Text>
+              <Text style={styles.quickActionSub}>USDC ↔ SOL</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => void handleToggleEyesFree()}
+              accessibilityRole="button"
+              accessibilityLabel="Enter Eyes-Free Tap-Anywhere voice canvas and Screen Curtain mode"
+              style={styles.quickActionTile}
+            >
+              <View style={[styles.quickIconBox, styles.quickIconOutline]}>
+                <Text style={styles.quickIconLimeText}>●</Text>
+              </View>
+              <Text style={styles.quickActionLabel}>Eyes-Free</Text>
+              <Text style={styles.quickActionSub}>Tap-Anywhere</Text>
+            </Pressable>
+          </View>
+
+          {/* Primary Spoken Command Banner */}
+          <Pressable
+            onPress={() => void handleTapAnywhereToggle()}
+            accessibilityRole="button"
+            accessibilityLabel={
+              recorder.isRecording
+                ? EN_UI_COPY.home.stopRecordingA11y
+                : EN_UI_COPY.home.startRecordingA11y
+            }
+            style={[
+              styles.voiceBanner,
+              recorder.isRecording ? styles.voiceBannerRecording : undefined,
+            ]}
+          >
+            <View style={styles.voiceBannerRow}>
+              <View
+                style={[
+                  styles.voiceOrbSmall,
+                  recorder.isRecording
+                    ? styles.micCircleActive
+                    : processing || signing
+                      ? styles.micCircleProcessing
+                      : undefined,
+                ]}
+              >
+                <Text style={styles.voiceOrbSmallText}>
+                  {recorder.isRecording
+                    ? 'STOP'
+                    : signing
+                      ? 'SIGN'
+                      : processing
+                        ? 'WAIT'
+                        : 'SPEAK'}
+                </Text>
+              </View>
+              <View style={styles.voiceBannerBody}>
+                <Text style={styles.voiceBannerTitle}>
+                  {recorder.isRecording
+                    ? 'Listening... tap to send'
+                    : signing
+                      ? 'Authorizing in Solflare...'
+                      : processing
+                        ? 'Understanding your voice...'
+                        : pendingTransfer
+                          ? `Say "${pendingTransfer.challengeSpoken}" to confirm`
+                          : 'Tap to Speak a Transaction'}
+                </Text>
+                <Text style={styles.voiceBannerSub} numberOfLines={2}>
+                  {pipelineLog
+                    ? `"${pipelineLog.transcript}" → ${pipelineLog.replyText}`
+                    : 'Try: "Check balance" · "Send 0.01 SOL to Ahmad" · "Swap 10 USDC to SOL"'}
+                </Text>
               </View>
             </View>
-          ) : null}
+            {pipelineError ? <Text style={styles.errorText}>{pipelineError}</Text> : null}
+            {recorder.error ? <Text style={styles.errorText}>{recorder.error}</Text> : null}
+          </Pressable>
 
-          <View style={styles.centerBlock}>
-            <View
-              style={[
-                styles.micCircle,
-                recorder.isRecording
-                  ? styles.micCircleActive
-                  : processing || signing
-                    ? styles.micCircleProcessing
-                    : undefined,
-              ]}
-            >
-              <Text style={styles.micLabel}>
-                {recorder.isRecording
-                  ? EN_UI_COPY.home.micStopLabel
-                  : signing
-                    ? 'SIGN'
-                    : processing
-                      ? 'WAIT'
-                      : EN_UI_COPY.home.micSpeakLabel}
-              </Text>
-            </View>
-
-            <Text style={styles.canvasTitle}>
-              {recorder.isRecording
-                ? 'Listening... tap anywhere to send'
-                : signing
-                  ? 'Waiting for Solflare hardware authorization...'
-                  : processing
-                    ? 'Processing voice command...'
-                    : pendingTransfer
-                      ? `Tap anywhere & say "${pendingTransfer.challengeSpoken}"`
-                      : 'Tap ANYWHERE on screen to speak'}
-            </Text>
-            <Text style={styles.canvasSub}>
-              Try: &ldquo;Check balance&rdquo; · &ldquo;Send 0.01 SOL to Ahmad&rdquo; · &ldquo;Swap 10 USDC to SOL&rdquo;
-            </Text>
-          </View>
+          {/* Active Pre-Sign Confirmation Card (Layer 2 / 4 / 5) */}
+          {renderPendingConfirmCard()}
 
           {/* Latest Confirmed Devnet Receipt Banner */}
           {lastReceipt ? (
@@ -618,49 +995,165 @@ export default function EyesFreeHomeScreen() {
               style={styles.receiptBanner}
             >
               <Text style={styles.receiptTitle}>
-                Confirmed on Devnet: {lastReceipt.amount} {lastReceipt.asset} →{' '}
-                {lastReceipt.recipientName}
+                ✓ Confirmed: {lastReceipt.amount} {lastReceipt.asset} → {lastReceipt.recipientName}
               </Text>
               <Text style={styles.receiptSig}>
-                Sig: {truncateAddress(lastReceipt.signature, 8, 8)} · Tap to open Explorer
+                Sig: {truncateAddress(lastReceipt.signature, 8, 8)} · Open Explorer ↗
               </Text>
             </Pressable>
           ) : null}
 
-          {/* Live Voice Pipeline Telemetry Card */}
-          <View style={styles.telemetryBox}>
-            <Text style={styles.telemetryTitle}>
-              Live Pipeline · {contacts.length} verified contacts in keyterms
-            </Text>
-            {pipelineLog ? (
-              <>
-                <Text style={styles.telemetryLine}>
-                  STT (scribe_v2): &ldquo;{pipelineLog.transcript}&rdquo; ({pipelineLog.sttMs}ms)
-                </Text>
-                <Text style={styles.telemetryLine}>
-                  NLU ({pipelineLog.nluEngine}): {pipelineLog.intent?.action ?? 'unknown'} (
-                  {pipelineLog.nluMs}ms)
-                </Text>
-                {pipelineLog.extraLatencyLabel ? (
-                  <Text style={styles.telemetryLine}>{pipelineLog.extraLatencyLabel}</Text>
-                ) : null}
-              </>
-            ) : (
-              <Text style={styles.telemetryMuted}>
-                Add a contact in Contacts tab first, then speak a live Devnet transfer.
-              </Text>
-            )}
-            {lastSpeech ? (
-              <Text style={styles.telemetryAccent}>
-                TTS ({lastSpeech.engine}): {lastSpeech.latencyMs}ms on-device
-              </Text>
-            ) : null}
-            {pipelineError ? <Text style={styles.errorText}>{pipelineError}</Text> : null}
-            {recorder.error ? <Text style={styles.errorText}>{recorder.error}</Text> : null}
+          {/* Recent Activity Section */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            <Pressable
+              onPress={() => {
+                void triggerHaptic('tick');
+                router.push('/(tabs)/history');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="See all transaction history"
+              style={styles.seeAllBtn}
+            >
+              <Text style={styles.seeAllText}>See All</Text>
+            </Pressable>
           </View>
-        </Pressable>
+
+          {recentTransactions.length === 0 ? (
+            <View style={styles.emptyActivityCard}>
+              <Text style={styles.emptyActivityTitle}>No Devnet transfers yet</Text>
+              <Text style={styles.emptyActivitySub}>
+                Add a verified contact in Contacts, then use Send or Tap to Speak to broadcast a live Devnet transaction.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.activityList}>
+              {recentTransactions.map((tx) => (
+                <Pressable
+                  key={tx.id}
+                  onPress={() => handleSpeakActivityItem(tx)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Sent ${tx.amount} ${tx.asset} to ${tx.recipientName}. Tap to hear receipt.`}
+                  style={styles.activityRow}
+                >
+                  <View style={styles.activityAvatar}>
+                    <Text style={styles.activityAvatarText}>{getInitials(tx.recipientName)}</Text>
+                  </View>
+                  <View style={styles.activityMeta}>
+                    <Text style={styles.activityName} numberOfLines={1}>
+                      {tx.recipientName}
+                    </Text>
+                    <Text style={styles.activitySub}>
+                      {formatShortDate(tx.createdAt)} · {truncateAddress(tx.signature, 4, 4)}
+                    </Text>
+                  </View>
+                  <View style={styles.activityAmountCol}>
+                    <Text style={styles.activityAmount}>
+                      -{tx.amount} {tx.asset}
+                    </Text>
+                    <Text style={styles.activityStatus}>Confirmed</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {/* Compact Live Latency Footnote when pipeline has run */}
+          {pipelineLog ? (
+            <View style={styles.latencyFootnote}>
+              <Text style={styles.latencyText}>
+                STT {pipelineLog.sttMs}ms · NLU {pipelineLog.nluMs}ms
+                {lastSpeech ? ` · TTS ${lastSpeech.latencyMs}ms (${lastSpeech.engine})` : ''}
+                {pipelineLog.extraLatencyLabel ? ` · ${pipelineLog.extraLatencyLabel}` : ''}
+              </Text>
+            </View>
+          ) : null}
+        </ScrollView>
+      ) : surfaceMode === 'eyes-free' ? (
+        /* SURFACE 2: FULL-SCREEN EYES-FREE TAP-ANYWHERE CANVAS (MOBILE_SPEC) */
+        <View style={styles.eyesFreeWrapper}>
+          <View style={styles.eyesFreeBar}>
+            <Pressable
+              onPress={() => void handleToggleEyesFree()}
+              accessibilityRole="button"
+              accessibilityLabel="Switch back to Visual Home mode"
+              style={styles.eyesFreeBarBtn}
+            >
+              <Text style={styles.eyesFreeBarBtnText}>← Visual Home</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => void handleToggleCurtain()}
+              accessibilityRole="button"
+              accessibilityLabel="Enable Screen Curtain to black out display while keeping voice active"
+              style={styles.curtainToggleBtn}
+            >
+              <Text style={styles.curtainToggleText}>Screen Curtain</Text>
+            </Pressable>
+          </View>
+
+          <Pressable
+            onPress={() => void handleTapAnywhereToggle()}
+            accessibilityRole="button"
+            accessibilityLabel={
+              recorder.isRecording
+                ? EN_UI_COPY.home.stopRecordingA11y
+                : EN_UI_COPY.home.startRecordingA11y
+            }
+            style={[
+              styles.fullCanvas,
+              recorder.isRecording ? styles.fullCanvasRecording : undefined,
+            ]}
+          >
+            {renderPendingConfirmCard()}
+
+            <View style={styles.centerBlock}>
+              <View
+                style={[
+                  styles.micCircle,
+                  recorder.isRecording
+                    ? styles.micCircleActive
+                    : processing || signing
+                      ? styles.micCircleProcessing
+                      : undefined,
+                ]}
+              >
+                <Text style={styles.micLabel}>
+                  {recorder.isRecording
+                    ? EN_UI_COPY.home.micStopLabel
+                    : signing
+                      ? 'SIGN'
+                      : processing
+                        ? 'WAIT'
+                        : EN_UI_COPY.home.micSpeakLabel}
+                </Text>
+              </View>
+
+              <Text style={styles.canvasTitle}>
+                {recorder.isRecording
+                  ? 'Listening... tap anywhere to send'
+                  : signing
+                    ? 'Waiting for Solflare hardware authorization...'
+                    : processing
+                      ? 'Processing voice command...'
+                      : pendingTransfer
+                        ? `Tap anywhere & say "${pendingTransfer.challengeSpoken}"`
+                        : 'Tap ANYWHERE on screen to speak'}
+              </Text>
+              <Text style={styles.canvasSub}>
+                Say: &ldquo;Check balance&rdquo; · &ldquo;Send 0.01 SOL to Ahmad&rdquo; · &ldquo;Swap 10 USDC to SOL&rdquo;
+              </Text>
+            </View>
+
+            <View style={styles.spokenCaptionBox}>
+              <Text style={styles.spokenCaptionLabel}>LAST SPOKEN</Text>
+              <Text style={styles.spokenCaptionText} numberOfLines={3}>
+                {lastSpokenText}
+              </Text>
+            </View>
+          </Pressable>
+        </View>
       ) : (
-        /* Collapsible Diagnostic Tools */
+        /* SURFACE 3: COLLAPSIBLE DIAGNOSTICS (TOOLS) */
         <ScrollView contentContainerStyle={styles.toolsContainer}>
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{EN_UI_COPY.home.hapticsCardTitle}</Text>
@@ -717,12 +1210,332 @@ export default function EyesFreeHomeScreen() {
           </View>
         </ScrollView>
       )}
+
+      {/* GUIDED SEND MODAL: Step 1 (Select Recipient) -> Step 2 (Enter Amount) */}
+      <Modal
+        visible={sendModalOpen}
+        animationType="slide"
+        onRequestClose={() => setSendModalOpen(false)}
+      >
+        <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
+          <KeyboardAvoidingView
+            style={styles.flexOne}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <Pressable
+                onPress={() => {
+                  if (sendStep === 'amount') {
+                    setSendStep('recipient');
+                    setSendModalError(null);
+                  } else {
+                    setSendModalOpen(false);
+                  }
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={sendStep === 'amount' ? 'Back to recipient list' : 'Close Send modal'}
+                style={styles.modalBackBtn}
+              >
+                <Text style={styles.modalBackText}>←</Text>
+              </Pressable>
+              <Text style={styles.modalTitle}>
+                {sendStep === 'recipient' ? 'Select Recipient' : 'Enter Amount'}
+              </Text>
+              <Pressable
+                onPress={() => setSendModalOpen(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel Send"
+                style={styles.modalCloseBtn}
+              >
+                <Text style={styles.modalCloseText}>Cancel</Text>
+              </Pressable>
+            </View>
+
+            {sendStep === 'recipient' ? (
+              /* STEP 1: SELECT VERIFIED RECIPIENT */
+              <ScrollView
+                contentContainerStyle={styles.modalBody}
+                keyboardShouldPersistTaps="handled"
+              >
+                <TextInput
+                  value={recipientQuery}
+                  onChangeText={setRecipientQuery}
+                  placeholder="Search verified contacts..."
+                  placeholderTextColor="#71717A"
+                  style={styles.searchInput}
+                />
+
+                <Pressable
+                  onPress={() => {
+                    setSendModalOpen(false);
+                    router.push('/(tabs)/contacts');
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add a new manually verified contact in Contacts tab"
+                  style={styles.addRecipientLink}
+                >
+                  <Text style={styles.addRecipientLinkText}>+ Add New Verified Contact</Text>
+                  <Text style={styles.addRecipientLinkSub}>Manual verification in Contacts tab</Text>
+                </Pressable>
+
+                <Text style={styles.modalSectionLabel}>
+                  VERIFIED CONTACTS ({filteredContacts.length})
+                </Text>
+
+                {filteredContacts.length === 0 ? (
+                  <View style={styles.emptyModalCard}>
+                    <Text style={styles.emptyActivityTitle}>No verified contacts found</Text>
+                    <Text style={styles.emptyActivitySub}>
+                      Add a verified recipient in the Contacts tab first. Voice and guided sends only allow verified contacts to stop blind signing.
+                    </Text>
+                  </View>
+                ) : (
+                  filteredContacts.map((contact) => (
+                    <Pressable
+                      key={contact.id}
+                      onPress={() => handleSelectRecipient(contact)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Send to ${contact.name}`}
+                      style={styles.recipientRow}
+                    >
+                      <View style={styles.activityAvatar}>
+                        <Text style={styles.activityAvatarText}>{getInitials(contact.name)}</Text>
+                      </View>
+                      <View style={styles.activityMeta}>
+                        <Text style={styles.activityName}>{contact.name}</Text>
+                        <Text style={styles.activitySub}>
+                          Verified · {truncateAddress(contact.recipientAddress, 6, 4)}
+                        </Text>
+                      </View>
+                      <Text style={styles.recipientArrow}>→</Text>
+                    </Pressable>
+                  ))
+                )}
+              </ScrollView>
+            ) : (
+              /* STEP 2: ENTER AMOUNT (Aligned to 03-bicara-enter-amount) */
+              <ScrollView
+                contentContainerStyle={styles.modalBody}
+                keyboardShouldPersistTaps="handled"
+              >
+                {selectedRecipient ? (
+                  <View style={styles.selectedRecipientCard}>
+                    <View style={styles.activityAvatar}>
+                      <Text style={styles.activityAvatarText}>
+                        {getInitials(selectedRecipient.name)}
+                      </Text>
+                    </View>
+                    <View style={styles.activityMeta}>
+                      <Text style={styles.activityName}>{selectedRecipient.name}</Text>
+                      <Text style={styles.activitySub}>
+                        Verified · {truncateAddress(selectedRecipient.recipientAddress, 6, 4)}
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* Asset Toggle (SOL / USDC) */}
+                <View style={styles.assetToggleRow}>
+                  {(['SOL', 'USDC'] as const).map((asset) => {
+                    const active = sendAsset === asset;
+                    return (
+                      <Pressable
+                        key={asset}
+                        onPress={() => {
+                          void triggerHaptic('tick');
+                          setSendAsset(asset);
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Select ${asset}`}
+                        style={[styles.assetPill, active ? styles.assetPillActive : undefined]}
+                      >
+                        <Text
+                          style={[
+                            styles.assetPillText,
+                            active ? styles.assetPillTextActive : undefined,
+                          ]}
+                        >
+                          {asset}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                {/* Available Balance Strip */}
+                <View style={styles.availableStrip}>
+                  <Text style={styles.availableLabel}>Available Devnet Balance</Text>
+                  <Text style={styles.availableValue}>
+                    {sendAsset === 'SOL'
+                      ? `${(balances?.sol ?? 0).toFixed(4)} SOL`
+                      : `${(balances?.usdc ?? 0).toFixed(2)} USDC`}
+                  </Text>
+                </View>
+
+                {/* Large Centered Amount Input */}
+                <View style={styles.amountInputWrap}>
+                  <TextInput
+                    value={sendAmountText}
+                    onChangeText={setSendAmountText}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                    placeholderTextColor="#52525B"
+                    style={styles.amountInput}
+                    accessibilityLabel={`Amount in ${sendAsset}`}
+                  />
+                  <Text style={styles.amountAssetSuffix}>{sendAsset}</Text>
+                </View>
+
+                {/* Quick Percentage Buttons */}
+                <View style={styles.pctRow}>
+                  {[
+                    { label: '25%', pct: 0.25 },
+                    { label: '50%', pct: 0.5 },
+                    { label: 'Max', pct: 1 },
+                  ].map((opt) => (
+                    <Pressable
+                      key={opt.label}
+                      onPress={() => handleApplyPercentage(opt.pct)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Set amount to ${opt.label} of balance`}
+                      style={styles.pctBtn}
+                    >
+                      <Text style={styles.pctBtnText}>{opt.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                {/* Fee & Safety Notice */}
+                <View style={styles.feeBox}>
+                  <Text style={styles.feeLine}>
+                    Estimated network fee: ~0.000005 SOL
+                  </Text>
+                  <Text style={styles.feeSub}>
+                    Next step speaks recipient, address, exact fee, and ATA rent aloud before Solflare hardware signing.
+                  </Text>
+                </View>
+
+                {sendModalError ? <Text style={styles.errorText}>{sendModalError}</Text> : null}
+
+                <Pressable
+                  onPress={() => void handleReviewGuidedSend()}
+                  disabled={preparingPlan}
+                  accessibilityRole="button"
+                  accessibilityLabel="Review transaction and hear spoken summary"
+                  style={styles.primaryModalBtn}
+                >
+                  <Text style={styles.primaryModalBtnText}>
+                    {preparingPlan ? 'Running Devnet Pre-Flight...' : 'Review & Hear Summary'}
+                  </Text>
+                </Pressable>
+              </ScrollView>
+            )}
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* VERIFIED SWAP QUOTE MODAL (Jupiter Quote-Only Safe Mode) */}
+      <Modal
+        visible={swapModalOpen}
+        animationType="slide"
+        onRequestClose={() => setSwapModalOpen(false)}
+      >
+        <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
+          <View style={styles.modalHeader}>
+            <Pressable
+              onPress={() => setSwapModalOpen(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Close Swap Quote modal"
+              style={styles.modalBackBtn}
+            >
+              <Text style={styles.modalBackText}>←</Text>
+            </Pressable>
+            <Text style={styles.modalTitle}>Verified Swap Quote</Text>
+            <View style={styles.modalSpacer} />
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.modalBody}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.swapPairCard}>
+              <View>
+                <Text style={styles.swapPairLabel}>ALLOWLISTED PAIR</Text>
+                <Text style={styles.swapPairValue}>
+                  {swapInputToken} → {swapOutputToken}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => {
+                  void triggerHaptic('tick');
+                  setSwapInputToken((prev) => (prev === 'USDC' ? 'SOL' : 'USDC'));
+                  setSwapResult(null);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Flip swap direction"
+                style={styles.flipBtn}
+              >
+                <Text style={styles.flipBtnText}>⇄ Flip</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.amountInputWrap}>
+              <TextInput
+                value={swapAmountText}
+                onChangeText={setSwapAmountText}
+                keyboardType="decimal-pad"
+                placeholder="10"
+                placeholderTextColor="#52525B"
+                style={styles.amountInput}
+                accessibilityLabel={`Swap input amount in ${swapInputToken}`}
+              />
+              <Text style={styles.amountAssetSuffix}>{swapInputToken}</Text>
+            </View>
+
+            <Pressable
+              onPress={() => void handleFetchVisualSwapQuote()}
+              disabled={loadingSwap}
+              accessibilityRole="button"
+              accessibilityLabel="Fetch live Jupiter swap quote and read aloud"
+              style={styles.primaryModalBtn}
+            >
+              <Text style={styles.primaryModalBtnText}>
+                {loadingSwap ? 'Fetching Live Quote...' : 'Get Spoken Quote'}
+              </Text>
+            </Pressable>
+
+            {swapError ? <Text style={styles.errorText}>{swapError}</Text> : null}
+
+            {swapResult ? (
+              <View style={styles.swapQuoteCard}>
+                <Text style={styles.confirmKicker}>QUOTE-ONLY DEVNET SAFE MODE</Text>
+                <Text style={styles.swapResultHeadline}>
+                  {swapAmountText} {swapResult.inputSymbol} ≈ {swapResult.outAmountUi ?? '—'}{' '}
+                  {swapResult.outputSymbol}
+                </Text>
+                <Text style={styles.confirmMeta}>
+                  Router: {swapResult.router} · Latency: {swapResult.latencyMs}ms
+                </Text>
+                <Text style={styles.confirmMeta}>
+                  Price Impact: {swapResult.priceImpactPct.toFixed(4)}% · Max Slippage:{' '}
+                  {(swapResult.slippageBps / 100).toFixed(2)}%
+                </Text>
+                <Text style={styles.feeSub}>
+                  No mainnet funds move. Live swap quotes verify real Jupiter routes before execution.
+                </Text>
+              </View>
+            ) : null}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0F0F0F' },
+  flexOne: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -730,27 +1543,49 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#262626',
+    borderBottomColor: '#1F1F23',
   },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  brandBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    backgroundColor: '#CCFF00',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandBadgeText: {
+    color: '#0F0F0F',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  brand: { fontSize: 19, fontWeight: '800', color: '#F4F4F5', letterSpacing: -0.4 },
+  kicker: { fontSize: 11, color: '#A1A1AA', fontWeight: '600' },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  kicker: { fontSize: 11, color: '#CCFF00', fontWeight: '600' },
-  brand: { fontSize: 22, fontWeight: '800', color: '#F4F4F5', letterSpacing: -0.4 },
   toolsToggleBtn: {
-    minHeight: 42,
-    paddingHorizontal: 14,
+    minHeight: 40,
+    paddingHorizontal: 13,
     borderRadius: 12,
     backgroundColor: '#1A1A1A',
     borderWidth: 1,
     borderColor: '#2E2E2E',
     justifyContent: 'center',
   },
+  toolsToggleBtnActive: {
+    borderColor: '#CCFF00',
+  },
   toolsToggleText: { fontSize: 12, fontWeight: '600', color: '#D4D4D8' },
+  toolsToggleTextActive: { color: '#CCFF00' },
   walletBtn: {
-    minHeight: 42,
+    minHeight: 40,
     paddingHorizontal: 14,
     borderRadius: 12,
     justifyContent: 'center',
@@ -764,54 +1599,216 @@ const styles = StyleSheet.create({
   walletBtnText: { fontSize: 12, fontWeight: '700' },
   walletBtnTextDark: { color: '#0F0F0F' },
   walletBtnTextLight: { color: '#CCFF00' },
-  balanceStrip: {
+
+  /* Visual Home Scroll */
+  visualScroll: {
+    padding: 20,
+    paddingBottom: 32,
+    gap: 16,
+  },
+  portfolioCard: {
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 24,
+    padding: 20,
+    gap: 10,
+  },
+  portfolioTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: '#161616',
-    borderBottomWidth: 1,
-    borderBottomColor: '#262626',
   },
-  balanceText: {
-    color: '#F4F4F5',
-    fontSize: 12,
-    fontFamily: 'monospace',
-    fontWeight: '600',
+  portfolioLabel: {
+    color: '#A1A1AA',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
-  storageTag: {
+  storageLabel: {
     color: '#CCFF00',
     fontSize: 11,
     fontWeight: '700',
   },
-  fullCanvas: {
-    flex: 1,
-    padding: 16,
-    justifyContent: 'space-between',
-    backgroundColor: '#0F0F0F',
+  portfolioUsd: {
+    color: '#F4F4F5',
+    fontSize: 38,
+    fontWeight: '900',
+    letterSpacing: -1,
+  },
+  balanceSplitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  balanceToken: {
+    color: '#D4D4D8',
+    fontSize: 13,
+    fontFamily: 'monospace',
+    fontWeight: '700',
+  },
+  balanceDivider: {
+    color: '#52525B',
+    fontSize: 13,
+  },
+  balanceRefreshHint: {
+    color: '#71717A',
+    fontSize: 11,
+    marginLeft: 'auto',
+  },
+  disconnectedPortfolio: {
+    gap: 4,
+    paddingVertical: 4,
+  },
+  disconnectedTitle: {
+    color: '#F4F4F5',
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  disconnectedSub: {
+    color: '#A1A1AA',
+    fontSize: 13,
+    lineHeight: 19,
+  },
+
+  /* 3-Column Quick Actions */
+  quickActionsGrid: {
+    flexDirection: 'row',
     gap: 10,
   },
-  fullCanvasRecording: {
-    backgroundColor: '#1C0E12',
+  quickActionTile: {
+    flex: 1,
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    gap: 7,
   },
-  confirmCard: {
+  quickIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickIconLime: {
+    backgroundColor: '#CCFF00',
+  },
+  quickIconPurple: {
+    backgroundColor: '#A855F7',
+  },
+  quickIconOutline: {
+    backgroundColor: '#121212',
+    borderWidth: 1.5,
+    borderColor: '#CCFF00',
+  },
+  quickIconDarkText: {
+    color: '#0F0F0F',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  quickIconLightText: {
+    color: '#FFFFFF',
+    fontSize: 19,
+    fontWeight: '900',
+  },
+  quickIconLimeText: {
+    color: '#CCFF00',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  quickActionLabel: {
+    color: '#F4F4F5',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  quickActionSub: {
+    color: '#A1A1AA',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+
+  /* Primary Voice Command Banner */
+  voiceBanner: {
     backgroundColor: '#1A1A1A',
     borderWidth: 1.5,
     borderColor: 'rgba(204, 255, 0, 0.45)',
+    borderRadius: 24,
+    padding: 16,
+    gap: 10,
+  },
+  voiceBannerRecording: {
+    backgroundColor: '#241115',
+    borderColor: '#EF4444',
+  },
+  voiceBannerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  voiceOrbSmall: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: '#CCFF00',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  voiceOrbSmallText: {
+    color: '#0F0F0F',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+  },
+  voiceBannerBody: {
+    flex: 1,
+    gap: 4,
+  },
+  voiceBannerTitle: {
+    color: '#F4F4F5',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  voiceBannerSub: {
+    color: '#A1A1AA',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+
+  /* Pre-Sign Confirmation Card */
+  confirmCard: {
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1.5,
+    borderColor: '#CCFF00',
     borderRadius: 22,
     padding: 16,
     gap: 7,
+  },
+  confirmTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
   },
   confirmKicker: {
     color: '#A855F7',
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
+  },
+  confirmCode: {
+    color: '#CCFF00',
+    fontSize: 12,
+    fontFamily: 'monospace',
+    fontWeight: '800',
   },
   confirmHeadline: {
     color: '#F4F4F5',
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
   },
   confirmMeta: {
@@ -860,16 +1857,188 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
+
+  /* Confirmed Receipt Banner */
+  receiptBanner: {
+    backgroundColor: '#161C12',
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.35)',
+    borderRadius: 18,
+    padding: 14,
+    gap: 3,
+  },
+  receiptTitle: { color: '#CCFF00', fontSize: 13, fontWeight: '700' },
+  receiptSig: { color: '#93C5FD', fontSize: 11, fontFamily: 'monospace' },
+
+  /* Recent Activity */
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  sectionTitle: {
+    color: '#F4F4F5',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  seeAllBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  seeAllText: {
+    color: '#CCFF00',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  emptyActivityCard: {
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#262626',
+    borderRadius: 20,
+    padding: 18,
+    gap: 6,
+  },
+  emptyActivityTitle: {
+    color: '#F4F4F5',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  emptyActivitySub: {
+    color: '#A1A1AA',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  activityList: {
+    gap: 10,
+  },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#262626',
+    borderRadius: 20,
+    padding: 14,
+    gap: 12,
+  },
+  activityAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#262626',
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityAvatarText: {
+    color: '#CCFF00',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  activityMeta: {
+    flex: 1,
+    gap: 2,
+  },
+  activityName: {
+    color: '#F4F4F5',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  activitySub: {
+    color: '#A1A1AA',
+    fontSize: 12,
+    fontFamily: 'monospace',
+  },
+  activityAmountCol: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  activityAmount: {
+    color: '#F4F4F5',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  activityStatus: {
+    color: '#CCFF00',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  latencyFootnote: {
+    paddingTop: 4,
+    alignItems: 'center',
+  },
+  latencyText: {
+    color: '#71717A',
+    fontSize: 11,
+    fontFamily: 'monospace',
+    textAlign: 'center',
+  },
+
+  /* Eyes-Free Surface + Screen Curtain */
+  eyesFreeWrapper: {
+    flex: 1,
+    backgroundColor: '#0F0F0F',
+  },
+  eyesFreeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#161616',
+    borderBottomWidth: 1,
+    borderBottomColor: '#262626',
+  },
+  eyesFreeBarBtn: {
+    minHeight: 40,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#2E2E2E',
+    justifyContent: 'center',
+  },
+  eyesFreeBarBtnText: {
+    color: '#F4F4F5',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  curtainToggleBtn: {
+    minHeight: 40,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: '#000000',
+    borderWidth: 1,
+    borderColor: '#CCFF00',
+    justifyContent: 'center',
+  },
+  curtainToggleText: {
+    color: '#CCFF00',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  fullCanvas: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'space-between',
+    backgroundColor: '#0F0F0F',
+    gap: 14,
+  },
+  fullCanvasRecording: {
+    backgroundColor: '#1C0E12',
+  },
   centerBlock: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 14,
+    gap: 16,
   },
   micCircle: {
-    width: 128,
-    height: 128,
-    borderRadius: 64,
+    width: 138,
+    height: 138,
+    borderRadius: 69,
     backgroundColor: '#CCFF00',
     alignItems: 'center',
     justifyContent: 'center',
@@ -884,31 +2053,357 @@ const styles = StyleSheet.create({
     backgroundColor: '#F59E0B',
     borderColor: 'rgba(245, 158, 11, 0.35)',
   },
-  micLabel: { color: '#0F0F0F', fontSize: 18, fontWeight: '900', letterSpacing: 0.8 },
-  canvasTitle: { color: '#F4F4F5', fontSize: 18, fontWeight: '700', textAlign: 'center' },
-  canvasSub: { color: '#A1A1AA', fontSize: 12, textAlign: 'center', lineHeight: 19 },
-  receiptBanner: {
-    backgroundColor: '#161C12',
-    borderWidth: 1,
-    borderColor: 'rgba(204, 255, 0, 0.35)',
-    borderRadius: 16,
-    padding: 13,
-    gap: 3,
-  },
-  receiptTitle: { color: '#CCFF00', fontSize: 13, fontWeight: '700' },
-  receiptSig: { color: '#93C5FD', fontSize: 11, fontFamily: 'monospace' },
-  telemetryBox: {
+  micLabel: { color: '#0F0F0F', fontSize: 20, fontWeight: '900', letterSpacing: 0.8 },
+  canvasTitle: { color: '#F4F4F5', fontSize: 19, fontWeight: '800', textAlign: 'center' },
+  canvasSub: { color: '#A1A1AA', fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  spokenCaptionBox: {
     backgroundColor: '#1A1A1A',
     borderWidth: 1,
     borderColor: '#262626',
     borderRadius: 18,
     padding: 14,
-    gap: 5,
+    gap: 4,
   },
-  telemetryTitle: { color: '#F4F4F5', fontSize: 12, fontWeight: '700' },
-  telemetryLine: { color: '#D4D4D8', fontSize: 11, fontFamily: 'monospace' },
-  telemetryMuted: { color: '#A1A1AA', fontSize: 12, lineHeight: 17 },
-  telemetryAccent: { color: '#CCFF00', fontSize: 11, fontFamily: 'monospace', fontWeight: '700' },
+  spokenCaptionLabel: {
+    color: '#CCFF00',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  spokenCaptionText: {
+    color: '#D4D4D8',
+    fontSize: 13,
+    lineHeight: 19,
+  },
+
+  /* Pure Black Screen Curtain Mode */
+  curtainSafe: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  curtainTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+  },
+  curtainMuted: {
+    color: '#3F3F46',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  curtainExitBtn: {
+    minHeight: 44,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#3F3F46',
+    justifyContent: 'center',
+  },
+  curtainExitText: {
+    color: '#A1A1AA',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  curtainCanvas: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  curtainStatus: {
+    color: '#27272A',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+  },
+
+  /* Modals (Guided Send & Swap Quote) */
+  modalSafe: {
+    flex: 1,
+    backgroundColor: '#0F0F0F',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1F1F23',
+  },
+  modalBackBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#1A1A1A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBackText: {
+    color: '#F4F4F5',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  modalTitle: {
+    color: '#F4F4F5',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  modalCloseBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  modalCloseText: {
+    color: '#A1A1AA',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalSpacer: {
+    width: 44,
+  },
+  modalBody: {
+    padding: 20,
+    gap: 14,
+  },
+  searchInput: {
+    minHeight: 50,
+    borderRadius: 16,
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    paddingHorizontal: 16,
+    color: '#F4F4F5',
+    fontSize: 15,
+  },
+  addRecipientLink: {
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.35)',
+    borderRadius: 18,
+    padding: 14,
+    gap: 3,
+  },
+  addRecipientLinkText: {
+    color: '#CCFF00',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  addRecipientLinkSub: {
+    color: '#A1A1AA',
+    fontSize: 12,
+  },
+  modalSectionLabel: {
+    color: '#A1A1AA',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    marginTop: 4,
+  },
+  emptyModalCard: {
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#262626',
+    borderRadius: 18,
+    padding: 16,
+    gap: 6,
+  },
+  recipientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 20,
+    padding: 14,
+    gap: 12,
+  },
+  recipientArrow: {
+    color: '#CCFF00',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  selectedRecipientCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.3)',
+    borderRadius: 20,
+    padding: 14,
+    gap: 12,
+  },
+  assetToggleRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  assetPill: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 14,
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  assetPillActive: {
+    backgroundColor: '#CCFF00',
+    borderColor: '#CCFF00',
+  },
+  assetPillText: {
+    color: '#D4D4D8',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  assetPillTextActive: {
+    color: '#0F0F0F',
+  },
+  availableStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#161616',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  availableLabel: {
+    color: '#A1A1AA',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  availableValue: {
+    color: '#F4F4F5',
+    fontSize: 13,
+    fontFamily: 'monospace',
+    fontWeight: '700',
+  },
+  amountInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1.5,
+    borderColor: '#27272A',
+    borderRadius: 22,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    gap: 10,
+  },
+  amountInput: {
+    flex: 1,
+    color: '#F4F4F5',
+    fontSize: 38,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  amountAssetSuffix: {
+    color: '#CCFF00',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  pctRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  pctBtn: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 14,
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pctBtnText: {
+    color: '#F4F4F5',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  feeBox: {
+    backgroundColor: '#161616',
+    borderRadius: 16,
+    padding: 14,
+    gap: 4,
+  },
+  feeLine: {
+    color: '#D4D4D8',
+    fontSize: 12,
+    fontFamily: 'monospace',
+    fontWeight: '700',
+  },
+  feeSub: {
+    color: '#A1A1AA',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  primaryModalBtn: {
+    minHeight: 54,
+    borderRadius: 18,
+    backgroundColor: '#CCFF00',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  primaryModalBtnText: {
+    color: '#0F0F0F',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  swapPairCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 20,
+    padding: 16,
+  },
+  swapPairLabel: {
+    color: '#A1A1AA',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  swapPairValue: {
+    color: '#F4F4F5',
+    fontSize: 20,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  flipBtn: {
+    minHeight: 42,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: '#262626',
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.5)',
+    justifyContent: 'center',
+  },
+  flipBtnText: {
+    color: '#E9D5FF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  swapQuoteCard: {
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1.5,
+    borderColor: 'rgba(204, 255, 0, 0.45)',
+    borderRadius: 20,
+    padding: 16,
+    gap: 8,
+  },
+  swapResultHeadline: {
+    color: '#F4F4F5',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+
+  /* Diagnostics Tools */
   toolsContainer: { padding: 20, gap: 16 },
   card: {
     backgroundColor: '#1A1A1A',

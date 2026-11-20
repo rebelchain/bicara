@@ -1,0 +1,552 @@
+Page: Bicara Landing Page
+
+```html
+<!DOCTYPE html><html lang="en" class="scroll-smooth"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bicara | Speak Before You Sign</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,500,700,400&amp;f[]=satoshi@700,500,400&amp;display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Satoshi', 'sans-serif'],
+                        display: ['Cabinet Grotesk', 'sans-serif'],
+                    },
+                    colors: {
+                        'bicara-bg': '#0f0f0f',
+                        'bicara-card': '#1a1a1a',
+                        'bicara-neon': '#ccff00',
+                        'bicara-neon-hover': '#b3e600',
+                        'bicara-purple': '#a855f7',
+                        'bicara-blue': '#3b82f6',
+                    },
+                    animation: {
+                        'blob': 'blob 7s infinite',
+                        'glow': 'glow 2s ease-in-out infinite alternate',
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        },
+                        glow: {
+                            '0%': { boxShadow: '0 0 10px #ccff00, 0 0 20px #ccff00' },
+                            '100%': { boxShadow: '0 0 20px #ccff00, 0 0 30px #ccff00' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f0f0f;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ccff00;
+        }
+        .neon-border {
+            border: 1px solid rgba(204, 255, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        .neon-border:hover {
+            border-color: #ccff00;
+            box-shadow: 0 0 15px rgba(204, 255, 0, 0.3);
+            transform: translateY(-5px);
+        }
+    </style>
+</head>
+<body class="bg-bicara-bg text-white font-sans antialiased overflow-x-hidden">
+    
+    <!-- Background decorative blobs -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0" data-sd-id="1">
+        <div class="absolute top-0 -left-4 w-72 h-72 bg-bicara-neon rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob" data-sd-id="2"></div>
+        <div class="absolute top-0 -right-4 w-72 h-72 bg-bicara-purple rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000" data-sd-id="3"></div>
+        <div class="absolute -bottom-8 left-20 w-72 h-72 bg-bicara-blue rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-4000" data-sd-id="4"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="fixed w-full z-50 top-0 bg-bicara-bg/80 backdrop-blur-md border-b border-white/5" data-sd-id="5">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" data-sd-id="6">
+            <div class="flex justify-between items-center h-20" data-sd-id="7">
+                <!-- Logo -->
+                <div class="flex-shrink-0 flex items-center gap-2 cursor-pointer" data-sd-id="8">
+                    <div class="w-10 h-10 bg-bicara-neon rounded-xl flex items-center justify-center" data-sd-id="9">
+                        <iconify-icon icon="lucide:mic" class="text-bicara-bg text-2xl"></iconify-icon>
+                    </div>
+                    <span class="font-display font-bold text-2xl tracking-tight" data-sd-id="10">Bicara</span>
+                </div>
+                
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex items-center space-x-8" data-sd-id="11">
+                    <a href="#how-it-works" class="text-gray-300 hover:text-bicara-neon transition-colors font-medium" data-sd-id="12">How it works</a>
+                    <a href="#features" class="text-gray-300 hover:text-bicara-neon transition-colors font-medium" data-sd-id="13">Features</a>
+                    <a href="#security" class="text-gray-300 hover:text-bicara-neon transition-colors font-medium" data-sd-id="14">Security</a>
+                </div>
+
+                <!-- CTA -->
+                <div class="hidden md:flex items-center" data-sd-id="15">
+                    <a href="#developers" class="px-6 py-2.5 rounded-full border border-white/20 text-white hover:border-bicara-neon hover:text-bicara-neon transition-all font-medium flex items-center gap-2" data-sd-id="16">
+                        <iconify-icon icon="lucide:code-2"></iconify-icon>
+                        Developers &amp; Judges
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="relative z-10" data-sd-id="17">
+
+        <!-- Hero Section -->
+        <section class="pt-40 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" data-sd-id="18">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center" data-sd-id="19">
+                <div class="space-y-8" data-sd-id="20">
+                    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10" data-sd-id="21">
+                        <span class="w-2 h-2 rounded-full bg-bicara-neon animate-pulse" data-sd-id="22"></span>
+                        <span class="text-sm font-medium text-gray-300" data-sd-id="23">Live on Solana Devnet</span>
+                    </div>
+                    
+                    <h1 class="font-display font-extrabold text-6xl md:text-7xl leading-[1.1] tracking-tight" data-sd-id="24">
+                        Speak Before <br>
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-bicara-neon to-green-400" data-sd-id="25">
+                            You Sign
+                        </span>
+                    </h1>
+                    
+                    <p class="text-xl text-gray-400 max-w-lg leading-relaxed" data-sd-id="26">
+                        The accessible-signing layer for Solana. Bicara reads aloud exactly what your transaction will do before you approve it. Never blind-sign again.
+                    </p>
+                    
+                    <div class="flex flex-col sm:flex-row gap-4" data-sd-id="27">
+                        <button class="px-8 py-4 bg-bicara-neon text-bicara-bg font-bold rounded-2xl hover:bg-bicara-neon-hover transition-colors flex items-center justify-center gap-3 text-lg hover:animate-glow" data-sd-id="28">
+                            <iconify-icon icon="lucide:smartphone" class="text-xl"></iconify-icon>
+                            Download for Solana Mobile
+                        </button>
+                        <button class="px-8 py-4 bg-white/5 text-white font-bold rounded-2xl border border-white/10 hover:bg-white/10 transition-colors flex items-center justify-center gap-3 text-lg" data-sd-id="29">
+                            <iconify-icon icon="lucide:play-circle" class="text-xl"></iconify-icon>
+                            Watch Demo
+                        </button>
+                    </div>
+                    
+                    <div class="flex items-center gap-4 pt-4" data-sd-id="30">
+                        <div class="flex -space-x-3" data-sd-id="31">
+                            <img class="w-10 h-10 rounded-full border-2 border-bicara-bg" src="https://i.pravatar.cc/100?img=1" alt="User" data-sd-id="32">
+                            <img class="w-10 h-10 rounded-full border-2 border-bicara-bg" src="https://i.pravatar.cc/100?img=2" alt="User" data-sd-id="33">
+                            <img class="w-10 h-10 rounded-full border-2 border-bicara-bg" src="https://i.pravatar.cc/100?img=3" alt="User" data-sd-id="34">
+                            <div class="w-10 h-10 rounded-full border-2 border-bicara-bg bg-bicara-card flex items-center justify-center text-xs font-bold text-gray-400" data-sd-id="35">+2k</div>
+                        </div>
+                        <p class="text-sm text-gray-400" data-sd-id="36">
+                            Trusted by early adopters
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="relative" data-sd-id="37">
+                    <!-- Decorative elements behind image -->
+                    <div class="absolute -inset-4 bg-bicara-neon/20 rounded-[3rem] blur-2xl transform rotate-3" data-sd-id="38"></div>
+                    <div class="absolute -inset-4 bg-bicara-purple/20 rounded-[3rem] blur-2xl transform -rotate-3" data-sd-id="39"></div>
+                    
+                    <!-- Hero Image / App Mockup concept -->
+                    <div class="relative bg-bicara-card border border-white/10 rounded-[2.5rem] p-6 shadow-2xl overflow-hidden" data-sd-id="40">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-bicara-neon via-bicara-blue to-bicara-purple" data-sd-id="41"></div>
+                        
+                        <!-- Mock App Interface -->
+                        <div class="bg-bicara-bg rounded-3xl p-6 border border-white/5 space-y-6" data-sd-id="42">
+                            <div class="flex justify-between items-center" data-sd-id="43">
+                                <div class="flex items-center gap-3" data-sd-id="44">
+                                    <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-bicara-neon to-green-500 p-0.5" data-sd-id="45">
+                                        <div class="w-full h-full bg-bicara-bg rounded-full flex items-center justify-center" data-sd-id="46">
+                                            <iconify-icon icon="lucide:mic" class="text-bicara-neon text-xl"></iconify-icon>
+                                        </div>
+                                    </div>
+                                    <div data-sd-id="47">
+                                        <p class="text-xs text-gray-500 font-medium uppercase tracking-wider" data-sd-id="48">Listening</p>
+                                        <p class="font-bold" data-sd-id="49">Send 5 USDC...</p>
+                                    </div>
+                                </div>
+                                <iconify-icon icon="lucide:more-vertical" class="text-gray-500"></iconify-icon>
+                            </div>
+                            
+                            <div class="p-4 rounded-2xl bg-white/5 border border-white/5" data-sd-id="50">
+                                <p class="text-sm text-gray-300 leading-relaxed" data-sd-id="51">
+                                    "You are about to send <span class="text-white font-bold" data-sd-id="52">5 USDC</span> to <span class="text-white font-bold" data-sd-id="53">Ahmad</span>, a saved contact. The network fee is under one cent. Say yes to continue or cancel to stop."
+                                </p>
+                            </div>
+                            
+                            <div class="flex justify-center py-4" data-sd-id="54">
+                                <div class="relative" data-sd-id="55">
+                                    <div class="absolute -inset-2 bg-bicara-neon rounded-full blur opacity-30 animate-pulse" data-sd-id="56"></div>
+                                    <button class="relative w-20 h-20 bg-bicara-neon text-bicara-bg rounded-full flex items-center justify-center text-3xl shadow-[0_0_20px_rgba(204,255,0,0.4)]" data-sd-id="57">
+                                        <iconify-icon icon="lucide:fingerprint"></iconify-icon>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- How it works -->
+        <section id="how-it-works" class="py-24 bg-bicara-card relative border-y border-white/5" data-sd-id="58">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" data-sd-id="59">
+                <div class="text-center max-w-3xl mx-auto mb-16" data-sd-id="60">
+                    <h2 class="font-display font-bold text-4xl md:text-5xl mb-6" data-sd-id="61">As simple as speaking</h2>
+                    <p class="text-lg text-gray-400" data-sd-id="62">
+                        No more squinting at hex codes. Bicara turns complex transactions into clear, spoken English.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8" data-sd-id="63">
+                    <!-- Step 1 -->
+                    <div class="p-8 rounded-[2rem] bg-bicara-bg border border-white/5 relative overflow-hidden group" data-sd-id="64">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-bicara-blue/10 rounded-full blur-2xl group-hover:bg-bicara-blue/20 transition-all" data-sd-id="65"></div>
+                        <div class="w-14 h-14 bg-bicara-blue/10 text-bicara-blue rounded-2xl flex items-center justify-center text-2xl mb-6" data-sd-id="66">
+                            1
+                        </div>
+                        <h3 class="text-2xl font-bold mb-4 font-display" data-sd-id="67">Say it</h3>
+                        <p class="text-gray-400 mb-6" data-sd-id="68">
+                            "Send 5 USDC to Ahmad" or "Swap 1 SOL for USDC". Just use natural language.
+                        </p>
+                        <div class="p-4 bg-white/5 rounded-xl border border-white/5" data-sd-id="69">
+                            <iconify-icon icon="lucide:mic" class="text-bicara-blue text-xl mb-2"></iconify-icon>
+                            <div class="h-2 w-2/3 bg-white/10 rounded-full mb-2" data-sd-id="70"></div>
+                            <div class="h-2 w-1/2 bg-white/10 rounded-full" data-sd-id="71"></div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="p-8 rounded-[2rem] bg-bicara-bg border border-bicara-neon/30 relative overflow-hidden group shadow-[0_0_30px_rgba(204,255,0,0.05)]" data-sd-id="72">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-bicara-neon/10 rounded-full blur-2xl group-hover:bg-bicara-neon/20 transition-all" data-sd-id="73"></div>
+                        <div class="w-14 h-14 bg-bicara-neon/10 text-bicara-neon rounded-2xl flex items-center justify-center text-2xl mb-6" data-sd-id="74">
+                            2
+                        </div>
+                        <h3 class="text-2xl font-bold mb-4 font-display text-white" data-sd-id="75">Hear it</h3>
+                        <p class="text-gray-400 mb-6" data-sd-id="76">
+                            Bicara translates the on-chain data and reads back exactly what will happen, including fees.
+                        </p>
+                        <div class="p-4 bg-bicara-neon/5 rounded-xl border border-bicara-neon/20" data-sd-id="77">
+                            <iconify-icon icon="lucide:volume-2" class="text-bicara-neon text-xl mb-2"></iconify-icon>
+                            <p class="text-xs text-bicara-neon/80 font-medium" data-sd-id="78">
+                                "You are about to send..."
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="p-8 rounded-[2rem] bg-bicara-bg border border-white/5 relative overflow-hidden group" data-sd-id="79">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-bicara-purple/10 rounded-full blur-2xl group-hover:bg-bicara-purple/20 transition-all" data-sd-id="80"></div>
+                        <div class="w-14 h-14 bg-bicara-purple/10 text-bicara-purple rounded-2xl flex items-center justify-center text-2xl mb-6" data-sd-id="81">
+                            3
+                        </div>
+                        <h3 class="text-2xl font-bold mb-4 font-display" data-sd-id="82">Approve it</h3>
+                        <p class="text-gray-400 mb-6" data-sd-id="83">
+                            Confirm securely using Solana Mobile's hardware-backed biometric signing.
+                        </p>
+                        <div class="p-4 bg-white/5 rounded-xl border border-white/5 flex justify-center items-center h-[76px]" data-sd-id="84">
+                            <iconify-icon icon="lucide:fingerprint" class="text-bicara-purple text-3xl"></iconify-icon>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features -->
+        <section id="features" class="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" data-sd-id="85">
+            <div class="flex flex-col md:flex-row justify-between items-end mb-16 gap-6" data-sd-id="86">
+                <div class="max-w-2xl" data-sd-id="87">
+                    <h2 class="font-display font-bold text-4xl md:text-5xl mb-4" data-sd-id="88">More than just voice</h2>
+                    <p class="text-lg text-gray-400" data-sd-id="89">
+                        Built blind-first, which means we engineered out every confusing visual element of crypto. It's security through clarity.
+                    </p>
+                </div>
+                <button class="px-6 py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors font-medium flex items-center gap-2 whitespace-nowrap" data-sd-id="90">
+                    View all features
+                    <iconify-icon icon="lucide:arrow-right"></iconify-icon>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6" data-sd-id="91">
+                <!-- Feature Card 1 -->
+                <div class="neon-border bg-bicara-card rounded-[2rem] p-8 flex flex-col sm:flex-row gap-6 items-start" data-sd-id="92">
+                    <div class="w-16 h-16 rounded-2xl bg-bicara-bg border border-bicara-neon/30 flex items-center justify-center flex-shrink-0" data-sd-id="93">
+                        <iconify-icon icon="lucide:eye" class="text-bicara-neon text-3xl"></iconify-icon>
+                    </div>
+                    <div data-sd-id="94">
+                        <h3 class="text-xl font-bold mb-2 font-display" data-sd-id="95">Accessibility-First</h3>
+                        <p class="text-gray-400 leading-relaxed" data-sd-id="96">
+                            Designed fundamentally for blind and low-vision users. If it works with zero screen, it works better for everyone.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature Card 2 -->
+                <div class="neon-border bg-bicara-card rounded-[2rem] p-8 flex flex-col sm:flex-row gap-6 items-start" data-sd-id="97">
+                    <div class="w-16 h-16 rounded-2xl bg-bicara-bg border border-bicara-neon/30 flex items-center justify-center flex-shrink-0" data-sd-id="98">
+                        <iconify-icon icon="lucide:shield-check" class="text-bicara-neon text-3xl"></iconify-icon>
+                    </div>
+                    <div data-sd-id="99">
+                        <h3 class="text-xl font-bold mb-2 font-display" data-sd-id="100">Security Verified</h3>
+                        <p class="text-gray-400 leading-relaxed" data-sd-id="101">
+                            Interprets raw transaction data before signing, preventing approval phishing and malicious contract drains.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature Card 3 -->
+                <div class="neon-border bg-bicara-card rounded-[2rem] p-8 flex flex-col sm:flex-row gap-6 items-start" data-sd-id="102">
+                    <div class="w-16 h-16 rounded-2xl bg-bicara-bg border border-bicara-neon/30 flex items-center justify-center flex-shrink-0" data-sd-id="103">
+                        <iconify-icon icon="lucide:contact" class="text-bicara-neon text-3xl"></iconify-icon>
+                    </div>
+                    <div data-sd-id="104">
+                        <h3 class="text-xl font-bold mb-2 font-display" data-sd-id="105">Saved Contacts</h3>
+                        <p class="text-gray-400 leading-relaxed" data-sd-id="106">
+                            Stop verifying 44-character Base58 addresses. Send to names you know and trust, resolved locally.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature Card 4 -->
+                <div class="neon-border bg-bicara-card rounded-[2rem] p-8 flex flex-col sm:flex-row gap-6 items-start" data-sd-id="107">
+                    <div class="w-16 h-16 rounded-2xl bg-bicara-bg border border-bicara-neon/30 flex items-center justify-center flex-shrink-0" data-sd-id="108">
+                        <iconify-icon icon="lucide:calculator" class="text-bicara-neon text-3xl"></iconify-icon>
+                    </div>
+                    <div data-sd-id="109">
+                        <h3 class="text-xl font-bold mb-2 font-display" data-sd-id="110">Real-Time Fees</h3>
+                        <p class="text-gray-400 leading-relaxed" data-sd-id="111">
+                            Hears exact network fees, rent, slippage, and price impact computed at runtime before you say yes.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Security Deep Dive -->
+        <section id="security" class="py-24 relative overflow-hidden" data-sd-id="112">
+            <!-- Background gradient -->
+            <div class="absolute inset-0 bg-gradient-to-b from-transparent via-bicara-neon/5 to-transparent" data-sd-id="113"></div>
+            
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10" data-sd-id="114">
+                <div class="bg-bicara-card border border-bicara-neon/20 rounded-[3rem] p-8 md:p-16 overflow-hidden relative" data-sd-id="115">
+                    <!-- Decorative glowing orb -->
+                    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-bicara-neon/10 rounded-full blur-[100px] pointer-events-none" data-sd-id="116"></div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10" data-sd-id="117">
+                        <div data-sd-id="118">
+                            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-bicara-neon/10 text-bicara-neon border border-bicara-neon/20 mb-8 font-bold" data-sd-id="119">
+                                <iconify-icon icon="lucide:alert-triangle"></iconify-icon>
+                                The $516.8M Problem
+                            </div>
+                            
+                            <h2 class="font-display font-bold text-4xl md:text-5xl mb-6" data-sd-id="120">
+                                Blind-first = <br>
+                                Works for everyone
+                            </h2>
+                            
+                            <div class="space-y-6 text-lg text-gray-300" data-sd-id="121">
+                                <p data-sd-id="122">
+                                    Blind signing is a universal self-custodial crypto problem. In 2022 alone, approval phishing stole over half a billion dollars.
+                                </p>
+                                <p data-sd-id="123">
+                                    Visual inspection fails everyone eventually. By building an accessible-signing layer that relies entirely on voice and verified data, Bicara protects you from malicious transactions disguised as standard approvals.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6" data-sd-id="124">
+                            <div class="bg-bicara-bg p-6 rounded-3xl border border-white/5" data-sd-id="125">
+                                <div class="text-red-400 mb-4" data-sd-id="126">
+                                    <iconify-icon icon="lucide:x-circle" class="text-3xl"></iconify-icon>
+                                </div>
+                                <h4 class="font-bold mb-2" data-sd-id="127">Standard Wallet</h4>
+                                <p class="text-sm text-gray-500" data-sd-id="128">
+                                    "Approve transaction? Program: 3mN3..."
+                                    <br><br>
+                                    <span class="text-red-400/80 text-xs" data-sd-id="129">*User blindly clicks approve, wallet drained*</span>
+                                </p>
+                            </div>
+                            
+                            <div class="bg-bicara-bg p-6 rounded-3xl border border-bicara-neon/30 shadow-[0_0_20px_rgba(204,255,0,0.1)]" data-sd-id="130">
+                                <div class="text-bicara-neon mb-4" data-sd-id="131">
+                                    <iconify-icon icon="lucide:check-circle-2" class="text-3xl"></iconify-icon>
+                                </div>
+                                <h4 class="font-bold mb-2" data-sd-id="132">With Bicara</h4>
+                                <p class="text-sm text-gray-500" data-sd-id="133">
+                                    "Warning: This transaction will transfer all your USDC to an unknown address."
+                                    <br><br>
+                                    <span class="text-bicara-neon/80 text-xs" data-sd-id="134">*User cancels transaction, funds safe*</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Social Proof -->
+        <section class="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" data-sd-id="135">
+            <div class="text-center mb-16" data-sd-id="136">
+                <h2 class="font-display font-bold text-4xl md:text-5xl mb-4" data-sd-id="137">Built for the community</h2>
+                <p class="text-lg text-gray-400" data-sd-id="138">Hear from the users who test our accessible-signing layer.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6" data-sd-id="139">
+                <!-- Testimonial 1 -->
+                <div class="bg-bicara-card p-8 rounded-[2rem] border border-white/5" data-sd-id="140">
+                    <div class="flex gap-1 text-bicara-neon mb-6" data-sd-id="141">
+                        <iconify-icon icon="lucide:star" class="text-xl"></iconify-icon>
+                        <iconify-icon icon="lucide:star" class="text-xl"></iconify-icon>
+                        <iconify-icon icon="lucide:star" class="text-xl"></iconify-icon>
+                        <iconify-icon icon="lucide:star" class="text-xl"></iconify-icon>
+                        <iconify-icon icon="lucide:star" class="text-xl"></iconify-icon>
+                    </div>
+                    <p class="text-gray-300 mb-8 text-lg leading-relaxed" data-sd-id="142">
+                        "For the first time, I actually know what I'm signing on Solana. The voice readout gives me the confidence I was missing with standard wallets."
+                    </p>
+                    <div class="flex items-center gap-4" data-sd-id="143">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-bicara-purple to-bicara-blue p-0.5" data-sd-id="144">
+                            <img src="https://i.pravatar.cc/150?img=11" alt="Sarah" class="w-full h-full rounded-full object-cover" data-sd-id="145">
+                        </div>
+                        <div data-sd-id="146">
+                            <h4 class="font-bold" data-sd-id="147">Sarah J.</h4>
+                            <p class="text-sm text-gray-500" data-sd-id="148">Low-vision user</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Testimonial 2 -->
+                <div class="bg-bicara-card p-8 rounded-[2rem] border border-bicara-neon/20 relative" data-sd-id="149">
+                    <div class="absolute -top-3 -right-3 bg-bicara-neon text-bicara-bg text-xs font-bold px-3 py-1 rounded-full" data-sd-id="150">
+                        Featured
+                    </div>
+                    <div class="flex gap-1 text-bicara-neon mb-6" data-sd-id="151">
+                        <iconify-icon icon="lucide:star" class="text-xl"></iconify-icon>
+                        <iconify-icon icon="lucide:star" class="text-xl"></iconify-icon>
+                        <iconify-icon icon="lucide:star" class="text-xl"></iconify-icon>
+                        <iconify-icon icon="lucide:star" class="text-xl"></iconify-icon>
+                        <iconify-icon icon="lucide:star" class="text-xl"></iconify-icon>
+                    </div>
+                    <p class="text-gray-300 mb-8 text-lg leading-relaxed" data-sd-id="152">
+                        "I'm fully sighted, but I use Bicara because I'm terrified of drainer links. Hearing the transaction summary out loud is the ultimate sanity check."
+                    </p>
+                    <div class="flex items-center gap-4" data-sd-id="153">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-bicara-neon to-green-500 p-0.5" data-sd-id="154">
+                            <img src="https://i.pravatar.cc/150?img=33" alt="Marcus" class="w-full h-full rounded-full object-cover" data-sd-id="155">
+                        </div>
+                        <div data-sd-id="156">
+                            <h4 class="font-bold" data-sd-id="157">Marcus T.</h4>
+                            <p class="text-sm text-gray-500" data-sd-id="158">DeFi Trader</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Testimonial 3 -->
+                <div class="bg-bicara-card p-8 rounded-[2rem] border border-white/5" data-sd-id="159">
+                    <div class="flex gap-1 text-bicara-neon mb-6" data-sd-id="160">
+                        <iconify-icon icon="lucide:star" class="text-xl"></iconify-icon>
+                        <iconify-icon icon="lucide:star" class="text-xl"></iconify-icon>
+                        <iconify-icon icon="lucide:star" class="text-xl"></iconify-icon>
+                        <iconify-icon icon="lucide:star" class="text-xl"></iconify-icon>
+                        <iconify-icon icon="lucide:star" class="text-xl"></iconify-icon>
+                    </div>
+                    <p class="text-gray-300 mb-8 text-lg leading-relaxed" data-sd-id="161">
+                        "The Jupiter Swap integration is flawless. It reads the exact quote and slippage before I confirm with my fingerprint. Brilliant UX."
+                    </p>
+                    <div class="flex items-center gap-4" data-sd-id="162">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-bicara-blue to-cyan-400 p-0.5" data-sd-id="163">
+                            <img src="https://i.pravatar.cc/150?img=68" alt="Elena" class="w-full h-full rounded-full object-cover" data-sd-id="164">
+                        </div>
+                        <div data-sd-id="165">
+                            <h4 class="font-bold" data-sd-id="166">Elena R.</h4>
+                            <p class="text-sm text-gray-500" data-sd-id="167">Solana Developer</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Footer -->
+        <footer class="mt-20 border-t border-white/5 bg-bicara-card relative overflow-hidden" data-sd-id="168">
+            <!-- Decorative background -->
+            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-64 bg-bicara-neon/10 blur-[100px] rounded-t-full pointer-events-none" data-sd-id="169"></div>
+            
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 relative z-10" data-sd-id="170">
+                <div class="text-center max-w-3xl mx-auto" data-sd-id="171">
+                    <h2 class="font-display font-extrabold text-5xl md:text-6xl mb-8" data-sd-id="172">
+                        Ready to speak <br>your transactions?
+                    </h2>
+                    <p class="text-xl text-gray-400 mb-10" data-sd-id="173">
+                        Join the accessible-signing revolution on Solana Mobile.
+                    </p>
+                    
+                    <div class="flex flex-col sm:flex-row justify-center gap-4 mb-20" data-sd-id="174">
+                        <button class="px-8 py-4 bg-bicara-neon text-bicara-bg font-bold rounded-2xl hover:bg-bicara-neon-hover transition-colors flex items-center justify-center gap-3 text-lg" data-sd-id="175">
+                            <iconify-icon icon="lucide:download" class="text-xl"></iconify-icon>
+                            Get Started Now
+                        </button>
+                        <button class="px-8 py-4 bg-white/5 text-white font-bold rounded-2xl border border-white/10 hover:bg-white/10 transition-colors flex items-center justify-center gap-3 text-lg" data-sd-id="176">
+                            <iconify-icon icon="lucide:book-open" class="text-xl"></iconify-icon>
+                            Read the Docs
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-12 pt-12 border-t border-white/10" data-sd-id="177">
+                    <div class="col-span-1 md:col-span-2" data-sd-id="178">
+                        <div class="flex items-center gap-2 mb-6" data-sd-id="179">
+                            <div class="w-8 h-8 bg-bicara-neon rounded-lg flex items-center justify-center" data-sd-id="180">
+                                <iconify-icon icon="lucide:mic" class="text-bicara-bg text-xl"></iconify-icon>
+                            </div>
+                            <span class="font-display font-bold text-xl tracking-tight" data-sd-id="181">Bicara</span>
+                        </div>
+                        <p class="text-gray-500 max-w-sm" data-sd-id="182">
+                            The spoken transaction verification and accessibility layer for Solana. Built blind-first.
+                        </p>
+                    </div>
+                    
+                    <div data-sd-id="183">
+                        <h4 class="font-bold mb-6 text-white" data-sd-id="184">Resources</h4>
+                        <ul class="space-y-4 text-gray-500" data-sd-id="185">
+                            <li data-sd-id="186"><a href="#" class="hover:text-bicara-neon transition-colors" data-sd-id="187">Documentation</a></li>
+                            <li data-sd-id="188"><a href="#" class="hover:text-bicara-neon transition-colors" data-sd-id="189">GitHub</a></li>
+                            <li data-sd-id="190"><a href="#" class="hover:text-bicara-neon transition-colors" data-sd-id="191">Security Audits</a></li>
+                            <li data-sd-id="192"><a href="#" class="hover:text-bicara-neon transition-colors" data-sd-id="193">Press Kit</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div data-sd-id="194">
+                        <h4 class="font-bold mb-6 text-white" data-sd-id="195">Connect</h4>
+                        <ul class="space-y-4 text-gray-500" data-sd-id="196">
+                            <li data-sd-id="197"><a href="#" class="hover:text-bicara-neon transition-colors flex items-center gap-2" data-sd-id="198"><iconify-icon icon="lucide:twitter"></iconify-icon> Twitter</a></li>
+                            <li data-sd-id="199"><a href="#" class="hover:text-bicara-neon transition-colors flex items-center gap-2" data-sd-id="200"><iconify-icon icon="lucide:message-circle"></iconify-icon> Discord</a></li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="mt-16 text-center text-gray-600 text-sm" data-sd-id="201">
+                    <p data-sd-id="202">© 2024 Bicara. Built for Solana.</p>
+                </div>
+            </div>
+        </footer>
+
+    </main>
+
+</body></html>
+```
+
+Please reference this design and implement it into our codebase; Try to understand the structure, which part of our codebase is relevant and implement

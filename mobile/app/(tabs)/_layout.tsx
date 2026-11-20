@@ -16,12 +16,18 @@ export default function SpokenTabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
+        sceneStyle: {
           backgroundColor: '#0F0F0F',
-          borderTopColor: '#262626',
-          height: 70,
-          paddingBottom: 10,
-          paddingTop: 8,
+        },
+        tabBarStyle: {
+          backgroundColor: '#1A1A1A',
+          borderTopColor: 'rgba(255, 255, 255, 0.08)',
+          borderTopWidth: 1,
+          borderTopLeftRadius: 28,
+          borderTopRightRadius: 28,
+          height: 76,
+          paddingBottom: 12,
+          paddingTop: 10,
         },
         tabBarActiveTintColor: '#CCFF00',
         tabBarInactiveTintColor: '#71717A',
@@ -38,6 +44,7 @@ export default function SpokenTabsLayout() {
         tabBarLabelStyle: {
           fontSize: 13,
           fontWeight: '700',
+          marginTop: 2,
         },
       }}
     >

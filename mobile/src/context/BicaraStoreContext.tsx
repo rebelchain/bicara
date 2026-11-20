@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useMobileWallet } from '@wallet-ui/react-native-kit';
+import { fetchTokenPrices } from '../services/api';
 import {
   fetchDevnetBalances,
   normalizeContactSeed,
@@ -28,6 +29,7 @@ import {
 interface BicaraStoreContextValue {
   walletAddress: string | null;
   balances: DevnetBalances | null;
+  solUsdPrice: number | null;
   loadingBalances: boolean;
   contacts: VerifiedContact[];
   loadingContacts: boolean;
@@ -36,6 +38,8 @@ interface BicaraStoreContextValue {
   storageMode: StorageMode;
   supabaseConfigured: boolean;
   syncWarning: string | null;
+  pendingSendRecipient: VerifiedContact | null;
+  setPendingSendRecipient: (contact: VerifiedContact | null) => void;
   refreshBalances: () => Promise<DevnetBalances | null>;
   refreshAllData: () => Promise<void>;
   findContactByName: (name: string) => VerifiedContact | null;
@@ -60,6 +64,7 @@ export function BicaraStoreProvider({ children }: { children: ReactNode }) {
   const walletAddress = account?.address?.toString() ?? null;
 
   const [balances, setBalances] = useState<DevnetBalances | null>(null);
+  const [solUsdPrice, setSolUsdPrice] = useState<number | null>(null);
   const [loadingBalances, setLoadingBalances] = useState(false);
 
   const [contacts, setContacts] = useState<VerifiedContact[]>([]);
@@ -67,6 +72,8 @@ export function BicaraStoreProvider({ children }: { children: ReactNode }) {
 
   const [transactions, setTransactions] = useState<DevnetTransactionRecord[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+
+  const [pendingSendRecipient, setPendingSendRecipient] = useState<VerifiedContact | null>(null);
 
   const [storageMode, setStorageMode] = useState<StorageMode>(
     isSupabaseConfigured ? 'supabase' : 'local-cache'
@@ -80,9 +87,15 @@ export function BicaraStoreProvider({ children }: { children: ReactNode }) {
     }
     setLoadingBalances(true);
     try {
-      const next = await fetchDevnetBalances(walletAddress);
-      setBalances(next);
-      return next;
+      const [nextBalances, priceRes] = await Promise.all([
+        fetchDevnetBalances(walletAddress),
+        fetchTokenPrices().catch(() => null),
+      ]);
+      setBalances(nextBalances);
+      if (priceRes && typeof priceRes.solUsd === 'number' && priceRes.solUsd > 0) {
+        setSolUsdPrice(priceRes.solUsd);
+      }
+      return nextBalances;
     } catch (err) {
       setSyncWarning(
         err instanceof Error ? err.message : 'Failed to fetch Devnet balances from RPC.'
@@ -219,6 +232,7 @@ export function BicaraStoreProvider({ children }: { children: ReactNode }) {
     () => ({
       walletAddress,
       balances,
+      solUsdPrice,
       loadingBalances,
       contacts,
       loadingContacts,
@@ -227,6 +241,8 @@ export function BicaraStoreProvider({ children }: { children: ReactNode }) {
       storageMode,
       supabaseConfigured: isSupabaseConfigured,
       syncWarning,
+      pendingSendRecipient,
+      setPendingSendRecipient,
       refreshBalances,
       refreshAllData,
       findContactByName,
@@ -237,6 +253,7 @@ export function BicaraStoreProvider({ children }: { children: ReactNode }) {
     [
       walletAddress,
       balances,
+      solUsdPrice,
       loadingBalances,
       contacts,
       loadingContacts,
@@ -244,6 +261,7 @@ export function BicaraStoreProvider({ children }: { children: ReactNode }) {
       loadingTransactions,
       storageMode,
       syncWarning,
+      pendingSendRecipient,
       refreshBalances,
       refreshAllData,
       findContactByName,

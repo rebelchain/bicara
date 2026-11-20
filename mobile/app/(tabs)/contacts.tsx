@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -8,12 +8,19 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useBicaraStore } from '../../src/context/BicaraStoreContext';
 import { isValidSolanaAddress, truncateAddress } from '../../src/services/solana';
 import { speakEyesFree } from '../../src/services/speech';
 import type { VerifiedContact } from '../../src/services/supabase';
 
+function getInitial(name: string): string {
+  const clean = name.trim();
+  return clean ? clean[0].toUpperCase() : '?';
+}
+
 export default function ContactsScreen() {
+  const router = useRouter();
   const {
     walletAddress,
     contacts,
@@ -23,14 +30,26 @@ export default function ContactsScreen() {
     syncWarning,
     addVerifiedContact,
     removeVerifiedContact,
+    setPendingSendRecipient,
     refreshAllData,
   } = useBicaraStore();
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showAddForm, setShowAddForm] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [addressInput, setAddressInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
+
+  const filteredContacts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return contacts;
+    return contacts.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) || c.recipientAddress.toLowerCase().includes(q)
+    );
+  }, [contacts, searchQuery]);
 
   const handleUseOwnWallet = () => {
     if (!walletAddress) {
@@ -75,6 +94,7 @@ export default function ContactsScreen() {
       const saved = await addVerifiedContact(cleanName, cleanAddr);
       setNameInput('');
       setAddressInput('');
+      setShowAddForm(false);
       const msg = `Verified contact ${saved.name} saved, wallet ending ${saved.recipientAddress.slice(-4)}.`;
       setFormSuccess(msg);
       await speakEyesFree(msg, 'success', true);
@@ -85,6 +105,16 @@ export default function ContactsScreen() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleQuickSend = async (contact: VerifiedContact) => {
+    setPendingSendRecipient(contact);
+    await speakEyesFree(
+      `Selected ${contact.name}, wallet ending ${contact.recipientAddress.slice(-4)}. Enter amount to send.`,
+      'tick',
+      false
+    );
+    router.push('/(tabs)');
   };
 
   const handleHearContact = async (contact: VerifiedContact) => {
@@ -100,10 +130,11 @@ export default function ContactsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        {/* Header */}
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.kicker}>Gate B · Verified Address Book</Text>
-            <Text style={styles.title}>Contacts ({contacts.length})</Text>
+            <Text style={styles.kicker}>Verified Address Book</Text>
+            <Text style={styles.title}>Contacts</Text>
           </View>
           <Pressable
             onPress={() => void refreshAllData()}
@@ -117,16 +148,56 @@ export default function ContactsScreen() {
           </Pressable>
         </View>
 
+        {/* Search Bar (Aligned to 02-select-recipient) */}
+        <TextInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search name or Solana address"
+          placeholderTextColor="#71717A"
+          style={styles.searchInput}
+          accessibilityLabel="Search saved contacts by name or Solana address"
+        />
+
+        {/* Action Strip */}
+        <View style={styles.actionRow}>
+          <Pressable
+            onPress={() => {
+              setShowAddForm((prev) => !prev);
+              setFormError(null);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={showAddForm ? 'Close new contact form' : 'Add a new verified contact'}
+            style={styles.newContactBtn}
+          >
+            <Text style={styles.newContactBtnText}>
+              {showAddForm ? 'Close Form' : '+ New Contact'}
+            </Text>
+          </Pressable>
+          {walletAddress ? (
+            <Pressable
+              onPress={() => {
+                setShowAddForm(true);
+                handleUseOwnWallet();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Fill with connected wallet for self testing"
+              style={styles.selfFillBtn}
+            >
+              <Text style={styles.selfFillBtnText}>Self-Test Fill</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
         <Text style={styles.securityNote}>
-          Voice alone can never add or alter saved addresses. Verify every Solana Devnet address
-          manually below before saving — dynamic Scribe v2 keyterms update automatically.
+          Voice alone can never add or alter saved addresses. Verify every recipient manually
+          before saving — spoken recognition keyterms update automatically.
         </Text>
 
         {!supabaseConfigured ? (
           <View style={styles.noticeBox}>
             <Text style={styles.noticeText}>
-              Supabase env not set in mobile/.env yet — running on local cache fallback. Add
-              EXPO_PUBLIC_SUPABASE_URL &amp; EXPO_PUBLIC_SUPABASE_ANON_KEY to sync live to Supabase.
+              Running in local cache mode. Add EXPO_PUBLIC_SUPABASE_URL &amp;
+              EXPO_PUBLIC_SUPABASE_ANON_KEY in mobile/.env to sync live to Supabase.
             </Text>
           </View>
         ) : null}
@@ -137,93 +208,106 @@ export default function ContactsScreen() {
           </View>
         ) : null}
 
-        {/* Add Verified Contact Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>Add Verified Contact</Text>
-            {walletAddress ? (
-              <Pressable
-                onPress={handleUseOwnWallet}
-                accessibilityRole="button"
-                accessibilityLabel="Fill with my connected Devnet wallet for self testing"
-                style={styles.quickFillBtn}
-              >
-                <Text style={styles.quickFillText}>Self-Test Fill</Text>
-              </Pressable>
-            ) : null}
+        {formSuccess ? (
+          <View style={styles.successBanner}>
+            <Text style={styles.okText}>{formSuccess}</Text>
           </View>
+        ) : null}
 
-          <TextInput
-            value={nameInput}
-            onChangeText={setNameInput}
-            placeholder="Contact name (e.g. Ahmad)"
-            placeholderTextColor="#64748B"
-            style={styles.input}
-            accessibilityLabel="Contact display name"
-          />
+        {/* Expandable Add Verified Contact Card */}
+        {showAddForm ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Verify &amp; Add Contact</Text>
 
-          <TextInput
-            value={addressInput}
-            onChangeText={setAddressInput}
-            placeholder="Solana Devnet Base58 address"
-            placeholderTextColor="#64748B"
-            autoCapitalize="none"
-            autoCorrect={false}
-            style={[styles.input, styles.monoInput]}
-            accessibilityLabel="Solana Devnet recipient address"
-          />
+            <TextInput
+              value={nameInput}
+              onChangeText={setNameInput}
+              placeholder="Contact name (e.g. Ahmad)"
+              placeholderTextColor="#71717A"
+              style={styles.input}
+              accessibilityLabel="Contact display name"
+            />
 
-          <Pressable
-            onPress={() => void handleSaveContact()}
-            disabled={saving || !walletAddress}
-            accessibilityRole="button"
-            accessibilityLabel="Verify and save contact"
-            style={[
-              styles.saveBtn,
-              (!walletAddress || saving) && styles.saveBtnDisabled,
-            ]}
-          >
-            <Text style={styles.saveBtnText}>
-              {saving
-                ? 'Saving...'
-                : walletAddress
-                  ? 'Verify & Save Contact'
-                  : 'Connect Wallet on Home First'}
-            </Text>
-          </Pressable>
+            <TextInput
+              value={addressInput}
+              onChangeText={setAddressInput}
+              placeholder="Solana Devnet Base58 address"
+              placeholderTextColor="#71717A"
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={[styles.input, styles.monoInput]}
+              accessibilityLabel="Solana Devnet recipient address"
+            />
 
-          {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
-          {formSuccess ? <Text style={styles.okText}>{formSuccess}</Text> : null}
-        </View>
+            <Pressable
+              onPress={() => void handleSaveContact()}
+              disabled={saving || !walletAddress}
+              accessibilityRole="button"
+              accessibilityLabel="Verify and save contact"
+              style={[
+                styles.saveBtn,
+                (!walletAddress || saving) && styles.saveBtnDisabled,
+              ]}
+            >
+              <Text style={styles.saveBtnText}>
+                {saving
+                  ? 'Saving...'
+                  : walletAddress
+                    ? 'Verify & Save Contact'
+                    : 'Connect Wallet on Home First'}
+              </Text>
+            </Pressable>
 
-        {/* Contact List */}
+            {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
+          </View>
+        ) : null}
+
+        {/* Saved Contacts List */}
         <View style={styles.listSection}>
-          <Text style={styles.sectionLabel}>Saved Contacts</Text>
+          <Text style={styles.sectionLabel}>
+            Saved Contacts ({filteredContacts.length})
+          </Text>
           {loadingContacts ? (
             <Text style={styles.emptyText}>Loading contacts...</Text>
-          ) : contacts.length === 0 ? (
-            <Text style={styles.emptyText}>
-              No verified contacts yet. Add a contact above (or tap Self-Test Fill) so you can say
-              &ldquo;Send 0.01 SOL to Ahmad&rdquo; on the Home screen.
-            </Text>
+          ) : filteredContacts.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyText}>
+                {contacts.length === 0
+                  ? 'No verified contacts yet. Tap "+ New Contact" (or "Self-Test Fill") so you can send by tap or say "Send 0.01 SOL to Ahmad".'
+                  : 'No contacts match your search.'}
+              </Text>
+            </View>
           ) : (
-            contacts.map((contact) => (
-              <View key={contact.id} style={styles.contactRow}>
-                <View style={styles.contactInfo}>
-                  <Text style={styles.contactName}>{contact.name}</Text>
-                  <Text style={styles.contactAddr}>
-                    {truncateAddress(contact.recipientAddress, 6, 4)} · ending{' '}
-                    {contact.recipientAddress.slice(-4)}
-                  </Text>
-                </View>
-                <View style={styles.contactActions}>
+            filteredContacts.map((contact) => (
+              <View key={contact.id} style={styles.contactCard}>
+                <Pressable
+                  onPress={() => void handleQuickSend(contact)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Send to ${contact.name}, verified contact ending ${contact.recipientAddress.slice(-4)}`}
+                  style={styles.contactTopRow}
+                >
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>{getInitial(contact.name)}</Text>
+                  </View>
+                  <View style={styles.contactInfo}>
+                    <Text style={styles.contactName}>{contact.name}</Text>
+                    <Text style={styles.contactAddr}>
+                      Verified · {truncateAddress(contact.recipientAddress, 6, 4)}
+                    </Text>
+                  </View>
+                  <View style={styles.sendPill}>
+                    <Text style={styles.sendPillText}>Send →</Text>
+                  </View>
+                </Pressable>
+
+                <View style={styles.contactFooter}>
                   <Pressable
                     onPress={() => void handleHearContact(contact)}
                     accessibilityRole="button"
-                    accessibilityLabel={`Hear details for ${contact.name}`}
+                    accessibilityLabel={`Hear address details for ${contact.name}`}
                     style={styles.smallBtn}
                   >
-                    <Text style={styles.smallBtnText}>Hear</Text>
+                    <Text style={styles.smallBtnText}>Hear Address</Text>
                   </Pressable>
                   <Pressable
                     onPress={() => void handleDeleteContact(contact)}
@@ -231,7 +315,7 @@ export default function ContactsScreen() {
                     accessibilityLabel={`Remove ${contact.name}`}
                     style={styles.deleteBtn}
                   >
-                    <Text style={styles.deleteBtnText}>Delete</Text>
+                    <Text style={styles.deleteBtnText}>Remove</Text>
                   </Pressable>
                 </View>
               </View>
@@ -245,108 +329,177 @@ export default function ContactsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0F0F0F' },
-  container: { padding: 20, gap: 14, paddingBottom: 40 },
+  container: { padding: 20, gap: 14, paddingBottom: 36 },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   kicker: { fontSize: 12, color: '#CCFF00', fontWeight: '700' },
-  title: { fontSize: 22, fontWeight: '800', color: '#F4F4F5' },
+  title: { fontSize: 26, fontWeight: '800', color: '#F4F4F5', letterSpacing: -0.4 },
   refreshBtn: {
-    minHeight: 40,
+    minHeight: 42,
     paddingHorizontal: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: '#1A1A1A',
     borderWidth: 1,
-    borderColor: 'rgba(204, 255, 0, 0.3)',
+    borderColor: 'rgba(204, 255, 0, 0.25)',
     justifyContent: 'center',
   },
   refreshBtnText: { color: '#CCFF00', fontSize: 12, fontWeight: '700' },
+  searchInput: {
+    minHeight: 52,
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    color: '#F4F4F5',
+    fontSize: 15,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  newContactBtn: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 16,
+    backgroundColor: 'rgba(204, 255, 0, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newContactBtnText: { color: '#CCFF00', fontSize: 14, fontWeight: '800' },
+  selfFillBtn: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 16,
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selfFillBtnText: { color: '#F4F4F5', fontSize: 14, fontWeight: '700' },
   securityNote: { fontSize: 12, color: '#A1A1AA', lineHeight: 18 },
   noticeBox: {
     backgroundColor: '#1C1912',
     borderWidth: 1,
     borderColor: '#854D0E',
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 12,
   },
   noticeText: { color: '#FDE68A', fontSize: 12, lineHeight: 18 },
   warnText: { color: '#FCD34D', fontSize: 12, lineHeight: 18 },
+  successBanner: {
+    backgroundColor: '#161C12',
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.35)',
+    borderRadius: 16,
+    padding: 12,
+  },
   card: {
     backgroundColor: '#1A1A1A',
     borderWidth: 1,
-    borderColor: 'rgba(204, 255, 0, 0.22)',
-    borderRadius: 20,
+    borderColor: 'rgba(204, 255, 0, 0.28)',
+    borderRadius: 22,
     padding: 16,
     gap: 10,
   },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  cardTitle: { color: '#F4F4F5', fontSize: 15, fontWeight: '700' },
-  quickFillBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: '#262626',
-  },
-  quickFillText: { color: '#CCFF00', fontSize: 11, fontWeight: '700' },
+  cardTitle: { color: '#F4F4F5', fontSize: 16, fontWeight: '800' },
   input: {
-    minHeight: 48,
+    minHeight: 50,
     backgroundColor: '#0F0F0F',
     borderWidth: 1,
     borderColor: '#2E2E2E',
-    borderRadius: 12,
-    paddingHorizontal: 12,
+    borderRadius: 14,
+    paddingHorizontal: 14,
     color: '#F4F4F5',
     fontSize: 14,
   },
   monoInput: { fontFamily: 'monospace', fontSize: 12 },
   saveBtn: {
-    minHeight: 48,
-    borderRadius: 14,
+    minHeight: 50,
+    borderRadius: 16,
     backgroundColor: '#CCFF00',
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 2,
   },
   saveBtnDisabled: { backgroundColor: '#27272A' },
   saveBtnText: { color: '#0F0F0F', fontSize: 14, fontWeight: '800' },
   errorText: { color: '#FCA5A5', fontSize: 12 },
-  okText: { color: '#CCFF00', fontSize: 12 },
+  okText: { color: '#CCFF00', fontSize: 12, fontWeight: '600' },
   listSection: { gap: 10 },
-  sectionLabel: { color: '#D4D4D8', fontSize: 13, fontWeight: '700' },
-  emptyText: { color: '#A1A1AA', fontSize: 13, lineHeight: 20 },
-  contactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  sectionLabel: { color: '#A1A1AA', fontSize: 12, fontWeight: '700', letterSpacing: 0.4 },
+  emptyCard: {
     backgroundColor: '#1A1A1A',
     borderWidth: 1,
-    borderColor: '#262626',
-    borderRadius: 16,
-    padding: 14,
-    gap: 10,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 20,
+    padding: 18,
   },
-  contactInfo: { flex: 1, gap: 4 },
-  contactName: { color: '#F4F4F5', fontSize: 15, fontWeight: '700' },
+  emptyText: { color: '#A1A1AA', fontSize: 13, lineHeight: 20 },
+  contactCard: {
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.07)',
+    borderRadius: 20,
+    padding: 14,
+    gap: 12,
+  },
+  contactTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(168, 85, 247, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { color: '#F4F4F5', fontSize: 18, fontWeight: '800' },
+  contactInfo: { flex: 1, gap: 3 },
+  contactName: { color: '#F4F4F5', fontSize: 16, fontWeight: '700' },
   contactAddr: { color: '#A1A1AA', fontSize: 12, fontFamily: 'monospace' },
-  contactActions: { flexDirection: 'row', gap: 8 },
-  smallBtn: {
-    minHeight: 42,
+  sendPill: {
     paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: '#262626',
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#CCFF00',
+  },
+  sendPillText: { color: '#0F0F0F', fontSize: 12, fontWeight: '800' },
+  contactFooter: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  smallBtn: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 12,
+    backgroundColor: '#0F0F0F',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
     justifyContent: 'center',
   },
   smallBtnText: { color: '#F4F4F5', fontSize: 12, fontWeight: '600' },
   deleteBtn: {
     minHeight: 42,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: '#2D161A',
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#241417',
+    alignItems: 'center',
     justifyContent: 'center',
   },
   deleteBtnText: { color: '#FCA5A5', fontSize: 12, fontWeight: '600' },
