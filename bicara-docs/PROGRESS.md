@@ -76,7 +76,7 @@ Next step:   Run Gate A.2 on Azhar's physical OPPO CPH2631 Android 16 phone over
 | Picovoice Eagle genuine vs. impostor scores & chosen threshold | `[ ] Pending` | — |
 | `scribe_v2` English + dynamic `keyterms` accuracy | `[ ] Pending` | — |
 | `eleven_flash_v2_5` on-device TTS latency (ms) | `[ ] Pending` | — |
-| Jupiter Swap API V2 Quote-Only (`USDC ↔ SOL`) server proxy test | `[ ] Pending` | — |
+| Jupiter Swap API V2 Quote-Only (`USDC ↔ SOL`) server proxy test | `[x] PASS` | Live `/api/swap/quote` via Jupiter `/swap/v2/order` (no `taker`): `10 USDC -> 0.144895 SOL` (`router: "metis"`, `transaction: null`, `feeBps: 2`, `322ms`); unverified token `XYZ` blocked with `HTTP 403`. |
 
 ---
 
