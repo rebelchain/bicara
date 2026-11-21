@@ -89,3 +89,10 @@ create policy "bicara_transactions_insert"
     and char_length(owner_wallet) between 32 and 44
     and char_length(recipient_address) between 32 and 44
   );
+
+-- Explicit role privileges required alongside RLS policies
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on table public.contacts to anon, authenticated;
+grant select, insert on table public.transactions to anon, authenticated;
+
+notify pgrst, 'reload schema';
