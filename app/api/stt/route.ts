@@ -59,13 +59,31 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const response = await fetch(ELEVENLABS_STT_URL, {
-      method: 'POST',
-      headers: {
-        'xi-api-key': apiKey,
-      },
-      body: upstream,
-    });
+    let response: Response;
+    try {
+      response = await fetch(ELEVENLABS_STT_URL, {
+        method: 'POST',
+        headers: {
+          'xi-api-key': apiKey,
+        },
+        body: upstream,
+        signal: AbortSignal.timeout(12000),
+      });
+    } catch {
+      // Single retry on transient cold socket / Wi-Fi hiccup
+      const retryUpstream = new FormData();
+      retryUpstream.append('model_id', 'scribe_v2');
+      retryUpstream.append('language_code', languageCode);
+      retryUpstream.append('file', audio, 'voice-command.m4a');
+      response = await fetch(ELEVENLABS_STT_URL, {
+        method: 'POST',
+        headers: {
+          'xi-api-key': apiKey,
+        },
+        body: retryUpstream,
+        signal: AbortSignal.timeout(12000),
+      });
+    }
 
     if (!response.ok) {
       const detail = await response.text().catch(() => '');

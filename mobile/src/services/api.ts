@@ -175,6 +175,19 @@ export async function parseVoiceIntent(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ transcript, contactNames, mode }),
   });
+
+  if (res.status === 503 && mode === 'ai') {
+    const fallbackRes = await fetch(`${API_BASE_URL}/api/intent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transcript, contactNames, mode: 'fallback' }),
+    });
+    const fallbackData = (await fallbackRes.json()) as IntentProxyResponse & { error?: string };
+    if (fallbackRes.ok) {
+      return fallbackData;
+    }
+  }
+
   const data = (await res.json()) as IntentProxyResponse & { error?: string };
   if (!res.ok) {
     throw new Error(data.error ?? `Intent proxy error (${res.status})`);

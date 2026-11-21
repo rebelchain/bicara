@@ -80,15 +80,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
     if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
-      return NextResponse.json(
-        {
-          error:
-            'GEMINI_API_KEY is not configured in server secrets. Switch NLU mode to Offline Fallback or configure GEMINI_API_KEY in Settings > Secrets.',
-        },
-        { status: 503 }
-      );
+      const fallbackIntent = parseIntentFallback(transcript);
+      return NextResponse.json({
+        intent: fallbackIntent,
+        engine: 'deterministic-fallback (no-gemini-key)',
+        latencyMs: Date.now() - startedAt,
+      });
     }
 
     const ai = new GoogleGenAI({
@@ -177,7 +176,7 @@ export async function POST(req: NextRequest) {
     const callOfficialGemini = async (
       model: 'gemini-4-hydrogen' | 'gemini-3.1-flash-lite',
       thinkingLevel: ThinkingLevel,
-      timeoutMs = 6500
+      timeoutMs = 3500
     ) => {
       let timer: ReturnType<typeof setTimeout> | null = null;
       try {
@@ -211,7 +210,7 @@ export async function POST(req: NextRequest) {
       delayMs: number;
     }> = [
       { model: 'gemini-3.1-flash-lite', thinkingLevel: ThinkingLevel.MINIMAL, delayMs: 0 },
-      { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, delayMs: 150 },
+      { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW, delayMs: 100 },
     ];
 
     let responseText = '';
@@ -231,13 +230,21 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         lastErr = err;
         if (!isTransientOverload(err)) {
-          throw err;
+          break;
         }
       }
     }
 
-    if (lastErr) {
-      throw lastErr;
+    if (lastErr || !responseText) {
+      const reason =
+        lastErr instanceof Error ? lastErr.message : 'Gemini upstream unavailable';
+      const fallbackIntent = parseIntentFallback(transcript);
+      return NextResponse.json({
+        intent: fallbackIntent,
+        engine: 'deterministic-fallback (auto-failover)',
+        fallbackReason: reason,
+        latencyMs: Date.now() - startedAt,
+      });
     }
 
     const parsed = JSON.parse(responseText) as Partial<PaymentIntent>;
