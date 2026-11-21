@@ -2,18 +2,18 @@
 
 import { useState } from 'react';
 import {
+  Activity,
+  AlertCircle,
   Check,
+  CheckCircle2,
   Copy,
+  FileCode2,
+  Layers,
+  Loader2,
   Smartphone,
   Terminal,
-  Activity,
-  FileCode2,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
   Usb,
   Wifi,
-  Layers,
 } from 'lucide-react';
 import {
   BUILD_SCOPE_ITEMS,
@@ -37,6 +37,7 @@ interface HealthCheckResult {
     geminiConfigured: boolean;
     elevenLabsConfigured: boolean;
     voiceIdConfigured: boolean;
+    jupiterConfigured?: boolean;
   };
   models: {
     stt: string;
@@ -45,6 +46,11 @@ interface HealthCheckResult {
   };
   endpoints: string[];
   intentFallbackMs?: number;
+  pricesSolUsd?: number | null;
+  pricesMs?: number;
+  swapQuoteSummary?: string | null;
+  swapQuoteMs?: number;
+  swapBlocked403?: boolean;
 }
 
 export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProps) {
@@ -54,7 +60,7 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
   const [selectedFileId, setSelectedFileId] = useState<string>(
     mobileFiles[0]?.id ?? 'index'
   );
-  const [scopeFilter, setScopeFilter] = useState<'all' | 'hackathon' | 'roadmap'>('all');
+  const [scopeFilter, setScopeFilter] = useState<'all' | 'before' | 'hackathon' | 'roadmap'>('all');
 
   const [checkingProxy, setCheckingProxy] = useState(false);
   const [healthResult, setHealthResult] = useState<HealthCheckResult | null>(null);
@@ -76,24 +82,55 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
     setCheckingProxy(true);
     setHealthError(null);
     try {
-      const [healthRes, intentRes] = await Promise.all([
+      const priceStart = performance.now();
+      const swapStart = performance.now();
+
+      const [healthRes, intentRes, pricesRes, swapRes, scamRes] = await Promise.all([
         fetch('/api/health'),
         fetch('/api/intent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ transcript: 'Send 5 USDC to Ahmad', mode: 'fallback' }),
         }),
+        fetch('/api/prices'),
+        fetch('/api/swap/quote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ inputToken: 'USDC', outputToken: 'SOL', amount: 10 }),
+        }),
+        fetch('/api/swap/quote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ inputToken: 'USDC', outputToken: 'XYZ', amount: 10 }),
+        }),
       ]);
+
       if (!healthRes.ok) {
         throw new Error(`GET /api/health returned ${healthRes.status}`);
       }
+
       const healthData = (await healthRes.json()) as HealthCheckResult;
       const intentData = intentRes.ok
         ? ((await intentRes.json()) as { latencyMs?: number })
         : {};
+      const pricesData = pricesRes.ok
+        ? ((await pricesRes.json()) as { solUsd?: number })
+        : null;
+      const swapData = swapRes.ok
+        ? ((await swapRes.json()) as { outAmountUi?: number; router?: string })
+        : null;
+
       setHealthResult({
         ...healthData,
         intentFallbackMs: intentData.latencyMs,
+        pricesSolUsd: pricesData?.solUsd ?? null,
+        pricesMs: Math.round(performance.now() - priceStart),
+        swapQuoteSummary:
+          swapData && typeof swapData.outAmountUi === 'number'
+            ? `10 USDC -> ${swapData.outAmountUi.toFixed(5)} SOL (router: ${swapData.router ?? 'metis'})`
+            : null,
+        swapQuoteMs: Math.round(performance.now() - swapStart),
+        swapBlocked403: scamRes.status === 403,
       });
     } catch (err) {
       setHealthError(
@@ -127,6 +164,7 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
       ? BUILD_SCOPE_ITEMS
       : BUILD_SCOPE_ITEMS.filter((item) => item.bucket === scopeFilter);
 
+  const beforeCount = BUILD_SCOPE_ITEMS.filter((i) => i.bucket === 'before').length;
   const hackathonCount = BUILD_SCOPE_ITEMS.filter((i) => i.bucket === 'hackathon').length;
   const roadmapCount = BUILD_SCOPE_ITEMS.filter((i) => i.bucket === 'roadmap').length;
 
@@ -139,17 +177,15 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-[#E2E6DC]">
         <div className="space-y-2 max-w-2xl">
           <p className="text-xs font-semibold text-[#457249]">
-            Gate A &amp; B Hardware Validation · Physical Android USB · Track A (@solana/kit)
+            Gate A PASS · Gate B Physical OPPO Run Next · Track A (@solana/kit)
           </p>
           <h2 className="font-display text-2xl sm:text-3xl font-black tracking-tight text-[#1E3124] [text-wrap:balance]">
-            Android Mobile Build Kit &amp; Server Proxy Diagnostics
+            Android Mobile Build Kit &amp; Live 6-Endpoint Proxy Diagnostics
           </h2>
           <p className="text-sm sm:text-[15px] text-[#526658] leading-relaxed">
-            Reference Android Custom Dev Build in{' '}
-            <span className="font-mono text-[#1E3124]">/mobile</span> for the{' '}
-            <span className="font-mono text-[#1E3124]">accessible-signing</span> layer, paired with
-            physical <span className="font-mono text-[#1E3124]">expo-haptics</span> and server-side
-            ElevenLabs, Gemini, and Quote-Only Jupiter proxies.
+            Reference Android Custom Dev Client in{' '}
+            <span className="font-mono text-[#1E3124]">/mobile</span> verified on OPPO CPH2631
+            (Android 16), plus live diagnostics across all 6 server proxy routes.
           </p>
         </div>
 
@@ -188,7 +224,7 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
         </div>
       </div>
 
-      {/* Top Row: Physical Android USB Runbook (7 cols) + Live Voice Proxy Diagnostics (5 cols) */}
+      {/* Top Row: Physical Android USB Runbook (7 cols) + Live 6-Endpoint Proxy Diagnostics (5 cols) */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* Left: Physical Android USB Runbook */}
         <div className="xl:col-span-7 bg-white border border-[#E2E6DC] rounded-2xl p-5 sm:p-6 space-y-5 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
@@ -197,11 +233,11 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
               <div className="flex items-center gap-2">
                 <Smartphone className="w-4 h-4 text-[#356341]" aria-hidden="true" />
                 <h3 className="text-base font-bold text-[#1E3124]">
-                  01. Physical Android USB Runbook (No Emulator Needed)
+                  01. Physical Android USB Runbook (OPPO CPH2631 Verified)
                 </h3>
               </div>
               <p className="text-xs text-[#526658]">
-                Laptop only needs JDK 17 + Android SDK Platform-Tools &amp; Build-Tools
+                Zero emulator needed — Gate B runs in pure JS without rebuilding the Android APK
               </p>
             </div>
             <span className="text-xs font-mono text-[#2E6B40] font-semibold">
@@ -257,7 +293,7 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
           </ol>
         </div>
 
-        {/* Right: Live Voice Proxy Endpoint Diagnostics */}
+        {/* Right: Live 6-Endpoint Proxy Diagnostics + Gate B Physical Checklist */}
         <div className="xl:col-span-5 space-y-6">
           <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 sm:p-6 space-y-4 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
             <div className="flex items-start justify-between gap-3 pb-3 border-b border-[#E9EDE3]">
@@ -265,11 +301,11 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-[#356341]" aria-hidden="true" />
                   <h3 className="text-base font-bold text-[#1E3124]">
-                    02. Live Server Voice Proxy Check
+                    02. Live 6-Endpoint Server Proxy Check
                   </h3>
                 </div>
                 <p className="text-xs text-[#526658]">
-                  Verifies Next.js server routes consumed by the Android app over port 3000
+                  Probes health, intent, prices, Jupiter Quote-Only, and scam-token HTTP 403 block
                 </p>
               </div>
             </div>
@@ -284,12 +320,12 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
               {checkingProxy ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Testing /api/health &amp; /api/intent...</span>
+                  <span>Probing all server endpoints...</span>
                 </>
               ) : (
                 <>
                   <Terminal className="w-4 h-4" />
-                  <span>Test Proxy Endpoints</span>
+                  <span>Run Live Proxy Diagnostics</span>
                 </>
               )}
             </button>
@@ -308,46 +344,58 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
               {[
                 {
                   route: 'GET /api/health',
-                  role: 'USB adb reverse & secret readiness probe',
+                  role: 'USB adb reverse & server environment readiness probe',
                   ready: healthResult ? healthResult.ok : null,
-                  note: healthResult ? 'Online (200 OK)' : 'Click Test to verify',
+                  note: healthResult
+                    ? `Online (200 OK) · NLU: ${healthResult.models.nlu}`
+                    : 'Click Run Diagnostics to verify',
                 },
                 {
                   route: 'POST /api/intent',
-                  role: 'Gemini NLU + regex fallback',
+                  role: 'English-first NLU (Gemini primary + deterministic fallback)',
                   ready: healthResult ? true : null,
                   note: healthResult
                     ? healthResult.env.geminiConfigured
-                      ? `Gemini Ready · fallback ${healthResult.intentFallbackMs ?? 0}ms`
-                      : `Offline Fallback Ready (${healthResult.intentFallbackMs ?? 0}ms) · GEMINI_API_KEY optional`
+                      ? `Gemini Key Configured · fallback ${healthResult.intentFallbackMs ?? 0}ms`
+                      : `Fallback Active (${healthResult.intentFallbackMs ?? 0}ms) · GEMINI_API_KEY optional`
                     : 'Configured on server',
                 },
                 {
-                  route: 'POST /api/stt',
-                  role: 'ElevenLabs scribe_v2 with dynamic English keyterms (up to 1,000)',
-                  ready: healthResult ? healthResult.env.elevenLabsConfigured : null,
+                  route: 'POST /api/swap/quote',
+                  role: 'Jupiter Swap V2 Quote-Only (USDC ↔ SOL) + HTTP 403 scam allowlist',
+                  ready: healthResult
+                    ? Boolean(healthResult.swapQuoteSummary || healthResult.swapBlocked403)
+                    : null,
                   note: healthResult
-                    ? healthResult.env.elevenLabsConfigured
-                      ? 'ELEVENLABS_API_KEY Ready'
-                      : 'Needs ELEVENLABS_API_KEY in .env'
-                    : 'Requires ELEVENLABS_API_KEY',
+                    ? `${healthResult.swapQuoteSummary ?? 'Needs JUPITER_API_KEY'} · XYZ blocked 403: ${healthResult.swapBlocked403 ? 'PASS' : 'Check'}`
+                    : 'Requires server JUPITER_API_KEY',
                 },
                 {
-                  route: 'POST /api/tts',
-                  role: 'ElevenLabs eleven_flash_v2_5 (~100ms MP3)',
+                  route: 'GET /api/prices',
+                  role: 'Live SOL/USD price (Jupiter Price V3 + CoinGecko fallback)',
+                  ready: healthResult ? typeof healthResult.pricesSolUsd === 'number' : null,
+                  note: healthResult
+                    ? typeof healthResult.pricesSolUsd === 'number'
+                      ? `Live SOL: $${healthResult.pricesSolUsd.toFixed(2)} (${healthResult.pricesMs ?? 0}ms)`
+                      : 'Price upstream temporarily unavailable'
+                    : 'Configured on server',
+                },
+                {
+                  route: 'POST /api/stt & GET /api/tts',
+                  role: 'ElevenLabs scribe_v2 (<=1,000 keyterms) & eleven_flash_v2_5',
                   ready: healthResult ? healthResult.env.elevenLabsConfigured : null,
                   note: healthResult
                     ? healthResult.env.elevenLabsConfigured
-                      ? 'ELEVENLABS_API_KEY Ready'
-                      : 'Needs ELEVENLABS_API_KEY (expo-speech fallback active)'
-                    : 'Requires ELEVENLABS_API_KEY',
+                      ? 'ELEVENLABS_API_KEY Ready (measured 760ms STT / 558ms warm TTS on OPPO)'
+                      : 'Needs ELEVENLABS_API_KEY (native OS/browser speech fallback active)'
+                    : 'Requires server ELEVENLABS_API_KEY',
                 },
               ].map((ep) => (
                 <div key={ep.route} className="py-3 first:pt-1 last:pb-0 space-y-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono font-semibold text-[#1E3124]">{ep.route}</span>
                     <span
-                      className={`font-mono text-[11px] font-semibold inline-flex items-center gap-1 ${
+                      className={`font-mono text-[11px] font-semibold inline-flex items-center gap-1 shrink-0 ${
                         ep.ready === true
                           ? 'text-[#2E6B40]'
                           : ep.ready === false
@@ -372,30 +420,28 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
             </div>
           </div>
 
-          {/* Hardware Exit Criteria Box */}
+          {/* Gate B Physical Next-Step Box */}
           <div className="bg-[#F3F6EE] border border-[#DCE4D4] rounded-2xl p-5 space-y-3">
             <h3 className="text-sm font-bold text-[#1E3124]">
-              Physical Android Verification Checklist
+              Immediate Next Step (PROGRESS.md · Gate B on OPPO)
             </h3>
-            <ul className="space-y-2 text-xs text-[#526658] leading-relaxed list-disc pl-4">
+            <ol className="space-y-2 text-xs text-[#526658] leading-relaxed list-decimal pl-4">
               <li>
-                Custom Dev Client installed via{' '}
-                <span className="font-mono text-[#1E3124]">npx expo run:android</span> with Hermes
-                crypto polyfill ready.
+                Paste <span className="font-mono text-[#1E3124]">supabase/schema.sql</span> into
+                Supabase SQL Editor and add keys to{' '}
+                <span className="font-mono text-[#1E3124]">mobile/.env</span>.
               </li>
               <li>
-                Zero-Silent-Screen greeting speaks automatically on launch and all 5 physical{' '}
-                <span className="font-mono text-[#1E3124]">expo-haptics</span> patterns trigger.
+                Reload Metro (<span className="font-mono text-[#1E3124]">r</span>) on OPPO CPH2631 —
+                zero Android APK rebuild needed.
               </li>
               <li>
-                Tapping <span className="font-mono text-[#1E3124]">Connect MWA</span> authorizes
-                Solflare Devnet and displays the connected wallet address.
+                Add a verified contact (or tap Self-Test Fill), speak{' '}
+                <span className="font-mono text-[#1E3124]">&ldquo;Send 0.01 SOL to Ahmad&rdquo;</span>,
+                approve in Solflare, and log the live Solana Devnet Explorer signature in{' '}
+                <span className="font-mono text-[#1E3124]">PROGRESS.md</span>.
               </li>
-              <li>
-                USB <span className="font-mono text-[#1E3124]">adb reverse</span> connects directly
-                to local port 3000 voice proxies.
-              </li>
-            </ul>
+            </ol>
           </div>
         </div>
       </div>
@@ -407,13 +453,12 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
             <div className="flex items-center gap-2">
               <FileCode2 className="w-4 h-4 text-[#356341]" aria-hidden="true" />
               <h3 className="text-base font-bold text-[#1E3124]">
-                03. Live /mobile/ Expo Custom Dev Build Explorer
+                03. Live /mobile/ Source Explorer
               </h3>
             </div>
             <p className="text-xs text-[#526658]">
-              {mobileFiles.length} real files generated in{' '}
-              <span className="font-mono text-[#1E3124]">/mobile</span> · loaded directly from
-              workspace disk
+              {mobileFiles.length} real files in{' '}
+              <span className="font-mono text-[#1E3124]">/mobile</span> loaded directly from disk
             </p>
           </div>
 
@@ -440,7 +485,6 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12">
-          {/* File Sidebar */}
           <aside
             aria-label="Mobile scaffold file list"
             className="lg:col-span-4 border-b lg:border-b-0 lg:border-r border-[#E9EDE3] max-h-[540px] overflow-y-auto divide-y divide-[#F0F2EC]"
@@ -474,7 +518,6 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
             })}
           </aside>
 
-          {/* Code Viewer */}
           <div className="lg:col-span-8 flex flex-col bg-[#1C2820]">
             {activeFile && (
               <>
@@ -512,32 +555,33 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
         </div>
       </div>
 
-      {/* Section 4: Hackathon Plan vs Production Roadmap */}
+      {/* Section 4: Built Before vs During Hackathon vs Post-Hackathon */}
       <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 sm:p-6 space-y-5 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#E9EDE3]">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-[#356341]" aria-hidden="true" />
               <h3 className="text-base font-bold text-[#1E3124]">
-                04. Hackathon Build Sequence vs Production Roadmap
+                04. Delivery Timeline: Pre-Hackathon vs. Hackathon Window vs. Roadmap
               </h3>
             </div>
             <p className="text-xs text-[#526658]">
-              {hackathonCount} full hackathon build steps · {roadmapCount} post-hackathon roadmap
-              items
+              {beforeCount} pre-kickoff gates · {hackathonCount} hackathon window deliverables ·{' '}
+              {roadmapCount} post-hackathon roadmap
             </p>
           </div>
 
           <div
             role="group"
-            aria-label="Filter hackathon vs roadmap scope"
+            aria-label="Filter delivery timeline"
             className="flex flex-wrap items-center gap-1 p-1 bg-[#EEF3E8] border border-[#DCE4D4] rounded-full max-w-full self-start"
           >
             {(
               [
                 { id: 'all', label: `All (${BUILD_SCOPE_ITEMS.length})` },
-                { id: 'hackathon', label: `Step 1–4 Hackathon (${hackathonCount})` },
-                { id: 'roadmap', label: `Production Roadmap (${roadmapCount})` },
+                { id: 'before', label: `Before Hackathon (${beforeCount})` },
+                { id: 'hackathon', label: `During Hackathon (${hackathonCount})` },
+                { id: 'roadmap', label: `Roadmap (${roadmapCount})` },
               ] as const
             ).map((opt) => (
               <button
@@ -560,11 +604,11 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
         <div className="divide-y divide-[#ECEFE6]">
           {visibleScope.map((item) => {
             const isRoadmap = item.bucket === 'roadmap';
-            const isDone = item.status === 'Scaffolded (Step 1)';
+            const isDone = item.status === 'Gate A PASS';
             return (
               <div key={item.id} className="py-4 first:pt-0 last:pb-0 space-y-1.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-sm font-bold text-[#1E3124]">{item.title}</h3>
+                  <h4 className="text-sm font-bold text-[#1E3124]">{item.title}</h4>
                   <div className="flex items-center gap-2 text-xs font-mono">
                     <span className={isRoadmap ? 'text-[#1D4ED8]' : 'text-[#2E6B40]'}>
                       {item.stageLabel}
@@ -575,10 +619,10 @@ export default function BuildKitWorkspace({ mobileFiles }: BuildKitWorkspaceProp
                     <span
                       className={
                         isDone
-                          ? 'text-[#2E6B40]'
+                          ? 'text-[#2E6B40] font-bold'
                           : isRoadmap
                             ? 'text-[#1D4ED8]'
-                            : 'text-[#B45309]'
+                            : 'text-[#B45309] font-semibold'
                       }
                     >
                       {item.status}

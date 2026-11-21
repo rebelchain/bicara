@@ -1,83 +1,62 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import {
-  Mic,
-  MicOff,
-  Users,
+  ArrowLeft,
+  ArrowLeftRight,
+  ArrowUpRight,
+  AudioLines,
+  Check,
   Clock,
-  Wallet,
+  Delete,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Home,
+  Loader2,
+  Mic,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  Send,
+  ShieldAlert,
+  ShieldCheck,
+  Trash2,
+  UserPlus,
+  Users,
   Volume2,
   VolumeX,
-  CheckCircle2,
-  AlertCircle,
-  Send,
-  Loader2,
-  Smartphone,
-  ShieldCheck,
-  ShieldAlert,
-  RefreshCw,
-  EyeOff,
-  Eye,
-  Fingerprint,
-  HelpCircle,
-  RotateCcw,
-  Sparkles,
+  Wallet,
+  X,
 } from 'lucide-react';
 import {
-  DEFAULT_VOICEPRINT_PROFILE,
   DEMO_SENDER_WALLET,
-  HAPTIC_DESCRIPTIONS,
-  USDC_MINT_DEVNET,
-  VOICE_SCRIPTS,
-  buildScribeKeyterms,
   executeSimulatedTransfer,
-  narrateTabScreen,
   parseIntentFallback,
   resolveContact,
   truncateWallet,
-  usdcToRawUnits,
-  validateIntent,
-  verifySpeakerVoiceprint,
   type Contact,
-  type HapticPatternId,
+  type Currency,
   type PaymentIntent,
   type PhoneTabId,
-  type SpeakerKind,
   type TransactionRecord,
-  type TransferInstructionSummary,
-  type VoiceprintCheckResult,
-  type VoiceprintProfile,
 } from '@/lib/bicara-engine';
-import PhoneContactsTab from './PhoneContactsTab';
-import PhoneHistoryTab from './PhoneHistoryTab';
-import VoiceOnboardingOverlay from './VoiceOnboardingOverlay';
-
-type VoiceStage =
-  | 'idle'
-  | 'recording'
-  | 'processing'
-  | 'confirming'
-  | 'sending'
-  | 'success'
-  | 'error';
-
-interface PendingTransfer {
-  intent: PaymentIntent;
-  recipient: Contact;
-  resolutionSource: 'supabase' | 'on_chain';
-  transcript: string;
-}
-
-interface PipelineMetrics {
-  sttMs: number;
-  nluMs: number;
-  resolveMs: number;
-  txMs: number;
-  ttsMs: number;
-  engineLabel: string;
-}
+import {
+  SOLANA_DEVNET_FAUCET_URL,
+  connectBrowserWallet,
+  detectBrowserSolanaWallets,
+  fetchDevnetBalances,
+  generateSpokenChallenge,
+  inspectDevnetTransfer,
+  isValidSolanaPublicKey,
+  matchesBrowserSpokenChallenge,
+  sendRealDevnetTransfer,
+  type DetectedBrowserWallet,
+  type DevnetBalances,
+  type SpokenChallenge,
+} from '@/lib/solana-browser';
 
 interface PrototypeWorkspaceProps {
   contacts: Contact[];
@@ -88,35 +67,74 @@ interface PrototypeWorkspaceProps {
   onToggleWallet: () => void;
   onAddContact: (contact: Contact) => void;
   onDeleteContact: (id: string) => void;
-  onCompleteTransfer: (tx: TransactionRecord, nextBalance: number, recipientId: string) => void;
+  onCompleteTransfer: (
+    tx: TransactionRecord,
+    nextBalance: number,
+    recipientId: string
+  ) => void;
   onResetBalances: () => void;
   demoTriggerNonce: number;
   demoCommand?: string;
 }
 
-const DEMO_UTTERANCES = [
-  { label: 'Nav: Check Balance', text: 'Check balance' },
-  { label: 'Nav: Open Contacts', text: 'Open contacts' },
-  { label: 'Nav: Open History', text: 'Open history' },
-  { label: 'Nav: Help', text: 'Help' },
-  { label: 'Pay: Happy Path', text: 'Send 5 USDC to Ahmad' },
-  { label: 'Voice Confirm', text: 'Yes' },
-  { label: 'Pay: Spoken Words', text: 'Send twenty USDC to Budi' },
-  { label: 'Edge: Missing ATA', text: 'Send 5 USDC to Raka' },
-  { label: 'Edge: Not Found', text: 'Send 5 USDC to Reza' },
-];
+type ExecutionMode = 'sandbox' | 'devnet';
+type HomeSurfaceMode = 'visual' | 'eyes-free';
+type ActivePhoneSheet = 'none' | 'send-recipient' | 'send-amount' | 'swap';
 
-const WAVEFORM_HEIGHTS = [0.3, 0.7, 0.45, 0.95, 0.6, 1, 0.5, 0.85, 0.4, 0.9, 0.55, 0.75];
+interface PendingTransferPlan {
+  recipient: Contact;
+  amount: number;
+  asset: Currency;
+  transcript: string;
+  challenge: SpokenChallenge;
+  estimatedNetworkFeeSol: number;
+  createsNewAta: boolean;
+  estimatedAtaRentSol: number;
+  spokenSummary: string;
+}
+
+interface SwapQuoteData {
+  inputToken: string;
+  outputToken: string;
+  inAmountUi: number;
+  outAmountUi: number;
+  priceImpactPct: number;
+  router: string;
+  slippageBps: number;
+  quoteOnly: boolean;
+  spokenSummary: string;
+  latencyMs?: number;
+}
 
 interface BrowserSpeechRecognition {
   lang: string;
   interimResults: boolean;
   maxAlternatives: number;
-  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onresult:
+    | ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void)
+    | null;
   onerror: ((event: { error: string }) => void) | null;
   onend: (() => void) | null;
   start: () => void;
   stop: () => void;
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
+function formatShortDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return iso;
+  }
 }
 
 export default function PrototypeWorkspace({
@@ -124,8 +142,6 @@ export default function PrototypeWorkspace({
   transactions,
   senderBalanceUsdc,
   senderBalanceSol,
-  walletConnected,
-  onToggleWallet,
   onAddContact,
   onDeleteContact,
   onCompleteTransfer,
@@ -133,1554 +149,2184 @@ export default function PrototypeWorkspace({
   demoTriggerNonce,
   demoCommand = 'Send 5 USDC to Ahmad',
 }: PrototypeWorkspaceProps) {
+  // Execution mode: Instant Sandbox vs Real Solana Devnet (Phantom/Solflare)
+  const [executionMode, setExecutionMode] = useState<ExecutionMode>('sandbox');
+  const [detectedWallets, setDetectedWallets] = useState<DetectedBrowserWallet[]>([]);
+  const [connectedWallet, setConnectedWallet] = useState<{
+    wallet: DetectedBrowserWallet;
+    address: string;
+  } | null>(null);
+  const [connectingWallet, setConnectingWallet] = useState(false);
+  const [devnetBalances, setDevnetBalances] = useState<DevnetBalances | null>(null);
+  const [loadingBalances, setLoadingBalances] = useState(false);
+  const [solUsdPrice, setSolUsdPrice] = useState<number>(69.26);
+
+  // Mobile 1:1 surface & navigation state
   const [phoneTab, setPhoneTab] = useState<PhoneTabId>('home');
-  const [voiceStage, setVoiceStage] = useState<VoiceStage>('idle');
-  const [nluMode, setNluMode] = useState<'fallback' | 'ai'>('fallback');
-  const [ttsEnabled, setTtsEnabled] = useState(true);
-  const [autoCreateAta, setAutoCreateAta] = useState(true);
-
-  // Eyes-Free Blind Mode & On-Device Voiceprint State
-  const [eyesFreeMode, setEyesFreeMode] = useState(true);
+  const [homeSurface, setHomeSurface] = useState<HomeSurfaceMode>('visual');
   const [screenCurtain, setScreenCurtain] = useState(false);
-  const [activeSpeaker, setActiveSpeaker] = useState<SpeakerKind>('owner');
-  const [voiceprintProfile, setVoiceprintProfile] = useState<VoiceprintProfile>(
-    DEFAULT_VOICEPRINT_PROFILE
-  );
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [lastVoiceprintResult, setLastVoiceprintResult] =
-    useState<VoiceprintCheckResult | null>(null);
-  const [lastHaptic, setLastHaptic] = useState<HapticPatternId | null>('tick');
+  const [activeSheet, setActiveSheet] = useState<ActivePhoneSheet>('none');
 
-  const [transcript, setTranscript] = useState<string>('');
-  const [customCommand, setCustomCommand] = useState<string>('');
-  const [parsedIntent, setParsedIntent] = useState<PaymentIntent | null>(null);
-  const [pendingTransfer, setPendingTransfer] = useState<PendingTransfer | null>(null);
-  const [lastInstruction, setLastInstruction] = useState<TransferInstructionSummary | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [spokenLine, setSpokenLine] = useState<string | null>(
-    `Home screen. Your balance is ${senderBalanceUsdc.toFixed(2)} USDC and ${senderBalanceSol.toFixed(3)} SOL. Tap anywhere to speak.`
+  // Voice & TTS state
+  const [ttsEnabled, setTtsEnabled] = useState(true);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isSigning, setIsSigning] = useState(false);
+  const [lastTranscript, setLastTranscript] = useState('');
+  const [spokenLine, setSpokenLine] = useState(
+    'Bicara ready. Tap the voice button or choose a scenario to hear spoken transaction verification.'
   );
-  const [missingContactName, setMissingContactName] = useState<string | null>(null);
-  const [prefillContactName, setPrefillContactName] = useState<string | null>(null);
-  const [mirrorContactId, setMirrorContactId] = useState<string>('cnt-ahmad');
-  const [lastDeltaContactId, setLastDeltaContactId] = useState<string | null>(null);
-  const [lastDeltaAmount, setLastDeltaAmount] = useState<number>(0);
+  const [typedCommand, setTypedCommand] = useState('');
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
-  const [metrics, setMetrics] = useState<PipelineMetrics>({
-    sttMs: 0,
-    nluMs: 0,
-    resolveMs: 0,
-    txMs: 0,
-    ttsMs: 0,
-    engineLabel: 'Offline Regex Fallback',
-  });
+  // Active transfer confirmation (Layers 2, 4, 5)
+  const [pendingPlan, setPendingPlan] = useState<PendingTransferPlan | null>(null);
+  const [challengeInput, setChallengeInput] = useState('');
+  const [latestReceipt, setLatestReceipt] = useState<{
+    amount: number;
+    asset: Currency;
+    recipientName: string;
+    signature: string;
+    isLiveDevnet: boolean;
+    explorerUrl?: string;
+  } | null>(null);
+
+  // 2-Step Send Sheet state (mirrors OPPO mobile 1:1)
+  const [sendSearch, setSendSearch] = useState('');
+  const [sendRecipient, setSendRecipient] = useState<Contact | null>(null);
+  const [sendAsset, setSendAsset] = useState<Currency>('SOL');
+  const [sendAmountStr, setSendAmountStr] = useState('0.01');
+
+  // Live Swap Quote Sheet state (Jupiter Swap V2 Quote-Only)
+  const [swapInputAmount, setSwapInputAmount] = useState('10');
+  const [swapInputToken, setSwapInputToken] = useState<'USDC' | 'SOL'>('USDC');
+  const [swapLoading, setSwapLoading] = useState(false);
+  const [swapQuote, setSwapQuote] = useState<SwapQuoteData | null>(null);
+  const [swapBlockedMsg, setSwapBlockedMsg] = useState<string | null>(null);
+
+  // Contacts tab form state
+  const [contactSearch, setContactSearch] = useState('');
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [newContactName, setNewContactName] = useState('');
+  const [newContactWallet, setNewContactWallet] = useState('');
+  const [contactFormError, setContactFormError] = useState<string | null>(null);
 
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
   const lastHandledDemoRef = useRef<number>(0);
 
-  const speakOut = useCallback(
-    (text: string, haptic?: HapticPatternId) => {
+  // Effective displayed balances depending on execution mode
+  const activeSolBalance =
+    executionMode === 'devnet' ? (devnetBalances?.sol ?? 0) : senderBalanceSol;
+  const activeUsdcBalance =
+    executionMode === 'devnet' ? (devnetBalances?.usdc ?? 0) : senderBalanceUsdc;
+  const isWalletReady = executionMode === 'sandbox' || connectedWallet !== null;
+
+  const estimatedUsdTotal = useMemo(() => {
+    return activeUsdcBalance + activeSolBalance * solUsdPrice;
+  }, [activeUsdcBalance, activeSolBalance, solUsdPrice]);
+
+  // Detect Phantom / Solflare browser extensions + fetch live SOL price on mount
+  useEffect(() => {
+    const refreshExtensions = () => {
+      setDetectedWallets(detectBrowserSolanaWallets());
+    };
+    refreshExtensions();
+    const timer = window.setTimeout(refreshExtensions, 700);
+
+    fetch('/api/prices')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { solUsd?: number } | null) => {
+        if (data && typeof data.solUsd === 'number' && Number.isFinite(data.solUsd)) {
+          setSolUsdPrice(data.solUsd);
+        }
+      })
+      .catch(() => {
+        // Keep fallback SOL price quietly
+      });
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  // Speak text aloud (ElevenLabs /api/tts with automatic browser SpeechSynthesis fallback)
+  const speakText = useCallback(
+    (text: string) => {
       setSpokenLine(text);
-      if (haptic) {
-        setLastHaptic(haptic);
+      if (!ttsEnabled || typeof window === 'undefined') return;
+
+      if (audioElRef.current) {
+        audioElRef.current.pause();
+        audioElRef.current = null;
       }
-      if (!ttsEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) {
-        return;
-      }
-      try {
+      if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'en-US';
-        utterance.rate = 0.98;
-        window.speechSynthesis.speak(utterance);
-      } catch {
-        // Browser speech synthesis unavailable
       }
+
+      const speakWithBrowser = () => {
+        if (!('speechSynthesis' in window)) return;
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'en-US';
+        utter.rate = 1.02;
+        window.speechSynthesis.speak(utter);
+      };
+
+      fetch(`/api/tts?text=${encodeURIComponent(text)}`)
+        .then(async (res) => {
+          if (!res.ok) throw new Error('TTS proxy unavailable');
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const audio = new Audio(url);
+          audioElRef.current = audio;
+          audio.onended = () => URL.revokeObjectURL(url);
+          audio.onerror = () => {
+            URL.revokeObjectURL(url);
+            speakWithBrowser();
+          };
+          await audio.play();
+        })
+        .catch(() => {
+          speakWithBrowser();
+        });
     },
     [ttsEnabled]
   );
 
-  const handleSelectPhoneTab = useCallback(
-    (tab: PhoneTabId, forceSpeak = false) => {
-      setPhoneTab(tab);
-      setLastHaptic('tick');
-      const narration = narrateTabScreen(tab, {
-        walletConnected,
-        senderBalanceUsdc,
-        senderBalanceSol,
-        contacts,
-        transactions,
-      });
-      if (eyesFreeMode || forceSpeak) {
-        speakOut(narration, 'tick');
-      } else {
-        setSpokenLine(narration);
+  // Stop audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioElRef.current) {
+        audioElRef.current.pause();
       }
-    },
-    [walletConnected, senderBalanceUsdc, senderBalanceSol, contacts, transactions, eyesFreeMode, speakOut]
-  );
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
-  const handleConfirmTransfer = useCallback(async () => {
-    if (!pendingTransfer) return;
+  const refreshLiveDevnetBalances = useCallback(async (address: string) => {
+    setLoadingBalances(true);
+    try {
+      const next = await fetchDevnetBalances(address);
+      setDevnetBalances(next);
+    } catch {
+      setErrorBanner(
+        'Could not reach Solana Devnet RPC right now. Tap portfolio card to retry.'
+      );
+    } finally {
+      setLoadingBalances(false);
+    }
+  }, []);
 
-    setVoiceStage('sending');
-    setLastHaptic('tick');
-    await new Promise((resolve) => setTimeout(resolve, 420));
+  const handleConnectBrowserWallet = async (wallet: DetectedBrowserWallet) => {
+    setConnectingWallet(true);
+    setErrorBanner(null);
+    try {
+      const { publicKey } = await connectBrowserWallet(wallet);
+      setConnectedWallet({ wallet, address: publicKey });
+      setExecutionMode('devnet');
+      await refreshLiveDevnetBalances(publicKey);
+      speakText(
+        `${wallet.label} connected on Solana Devnet. Wallet ending in ${publicKey.slice(-4)}.`
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Wallet connection canceled.';
+      setErrorBanner(msg);
+      speakText('Wallet connection was canceled.');
+    } finally {
+      setConnectingWallet(false);
+    }
+  };
 
-    const result = executeSimulatedTransfer({
-      walletConnected,
-      confirmedByUser: true,
-      senderWallet: DEMO_SENDER_WALLET,
-      senderBalanceUsdc,
-      recipient: pendingTransfer.recipient,
-      amount: pendingTransfer.intent.amount ?? 0,
-      currency: pendingTransfer.intent.currency === 'SOL' ? 'SOL' : 'USDC',
-      voiceTranscript: pendingTransfer.transcript,
-      resolutionSource: pendingTransfer.resolutionSource,
-      autoCreateAta,
-    });
+  const handleDisconnectWallet = async () => {
+    if (!connectedWallet) return;
+    try {
+      await connectedWallet.wallet.provider.disconnect();
+    } catch {
+      // Ignore provider disconnect errors
+    }
+    setConnectedWallet(null);
+    setDevnetBalances(null);
+    setPendingPlan(null);
+    speakText('Wallet disconnected.');
+  };
 
-    if (!result.ok || !result.tx) {
-      setVoiceStage('error');
-      setStatusMessage(result.spokenMessage);
-      setPendingTransfer(null);
-      speakOut(result.spokenMessage, 'error');
+  const handleAddConnectedWalletAsContact = () => {
+    if (!connectedWallet) return;
+    const existing = contacts.find(
+      (c) => c.wallet.toLowerCase() === connectedWallet.address.toLowerCase()
+    );
+    if (existing) {
+      speakText(`Your wallet is already saved as ${existing.name}.`);
+      setSendRecipient(existing);
+      setSendAsset('SOL');
+      setSendAmountStr('0.001');
+      setActiveSheet('send-amount');
       return;
     }
 
-    setLastInstruction(result.instruction ?? null);
-    onCompleteTransfer(result.tx, result.nextSenderBalance, pendingTransfer.recipient.id);
-    setLastDeltaContactId(pendingTransfer.recipient.id);
-    setLastDeltaAmount(result.tx.amountUsdc);
-    setPendingTransfer(null);
-    setVoiceStage('success');
-    setStatusMessage(result.spokenMessage);
-    setMetrics((prev) => ({ ...prev, txMs: 1380, ttsMs: 112 }));
-    speakOut(result.spokenMessage, 'success');
+    const selfContact: Contact = {
+      id: `cnt-self-${Date.now()}`,
+      name: 'My Wallet',
+      wallet: connectedWallet.address,
+      onChain: false,
+      hasUsdcAta: (devnetBalances?.usdc ?? 0) > 0,
+      balanceUsdc: devnetBalances?.usdc ?? 0,
+      createdAt: new Date().toISOString(),
+    };
+    onAddContact(selfContact);
+    speakText('Saved your connected wallet as My Wallet for safe Solana Devnet self-testing.');
+  };
+
+  // Prepare pre-sign TxSummary + Layer 2 random 3-digit challenge
+  const prepareTransferConfirmation = useCallback(
+    async (recipient: Contact, amount: number, asset: Currency, transcript: string) => {
+      setErrorBanner(null);
+
+      if (executionMode === 'devnet' && !connectedWallet) {
+        const msg =
+          'Connect Phantom or Solflare on Solana Devnet first, or switch to Instant Sandbox.';
+        setErrorBanner(msg);
+        speakText(msg);
+        return;
+      }
+
+      if (amount <= 0 || !Number.isFinite(amount)) {
+        const msg = 'Please specify a valid transfer amount greater than zero.';
+        setErrorBanner(msg);
+        speakText(msg);
+        return;
+      }
+
+      if (asset === 'SOL' && amount > activeSolBalance) {
+        const msg = `Insufficient SOL balance. You have ${activeSolBalance.toFixed(4)} SOL available.`;
+        setErrorBanner(msg);
+        speakText(msg);
+        return;
+      }
+
+      if (asset === 'USDC' && amount > activeUsdcBalance) {
+        const msg = `Insufficient USDC balance. You have ${activeUsdcBalance.toFixed(2)} USDC available.`;
+        setErrorBanner(msg);
+        speakText(msg);
+        return;
+      }
+
+      let createsNewAta = asset === 'USDC' && !recipient.hasUsdcAta;
+      let estimatedNetworkFeeSol = 0.000005;
+      let estimatedAtaRentSol = createsNewAta ? 0.002039 : 0;
+
+      if (executionMode === 'devnet') {
+        const inspection = await inspectDevnetTransfer(recipient.wallet, asset);
+        if (!inspection.validRecipient) {
+          const msg =
+            inspection.error ??
+            `${recipient.name}'s saved address is not a valid Solana Devnet key. Add a real Devnet address in Contacts to test live transfers.`;
+          setErrorBanner(msg);
+          speakText(msg);
+          return;
+        }
+        createsNewAta = inspection.recipientCreatesAta;
+        estimatedNetworkFeeSol = inspection.estimatedNetworkFeeSol;
+        estimatedAtaRentSol = inspection.estimatedAtaRentSol;
+      }
+
+      const challenge = generateSpokenChallenge();
+      const rentClause = createsNewAta
+        ? ` Creating their token account adds ${estimatedAtaRentSol.toFixed(5)} SOL one-time rent.`
+        : '';
+      const modeClause =
+        executionMode === 'devnet'
+          ? 'Your wallet will open to sign on Solana Devnet.'
+          : 'Sandbox preview mode is active.';
+
+      const spokenSummary = `Review transfer: send ${amount} ${asset} to saved contact ${recipient.name}, address ending in ${recipient.wallet.slice(-4)}. Network fee is ${estimatedNetworkFeeSol.toFixed(6)} SOL.${rentClause} Say ${challenge.spokenWords} or tap Confirm & Sign to continue. ${modeClause}`;
+
+      setPendingPlan({
+        recipient,
+        amount,
+        asset,
+        transcript,
+        challenge,
+        estimatedNetworkFeeSol,
+        createsNewAta,
+        estimatedAtaRentSol,
+        spokenSummary,
+      });
+      setChallengeInput('');
+      setActiveSheet('none');
+      setPhoneTab('home');
+      speakText(spokenSummary);
+    },
+    [executionMode, connectedWallet, activeSolBalance, activeUsdcBalance, speakText]
+  );
+
+  // Confirm & execute either REAL Solana Devnet tx or Instant Sandbox preview
+  const executePendingPlan = useCallback(async () => {
+    if (!pendingPlan) return;
+    setErrorBanner(null);
+    setIsSigning(true);
+
+    try {
+      if (executionMode === 'devnet') {
+        if (!connectedWallet) {
+          throw new Error('Connect Phantom or Solflare on Solana Devnet first.');
+        }
+
+        speakText(
+          `Opening ${connectedWallet.wallet.label} to authorize ${pendingPlan.amount} ${pendingPlan.asset} to ${pendingPlan.recipient.name}.`
+        );
+
+        const result = await sendRealDevnetTransfer({
+          provider: connectedWallet.wallet.provider,
+          senderAddress: connectedWallet.address,
+          recipientAddress: pendingPlan.recipient.wallet,
+          amount: pendingPlan.amount,
+          asset: pendingPlan.asset,
+        });
+
+        const txRecord: TransactionRecord = {
+          id: `tx-devnet-${Date.now()}`,
+          recipientName: pendingPlan.recipient.name,
+          recipientWallet: pendingPlan.recipient.wallet,
+          amountUsdc: pendingPlan.amount,
+          rawUnits: String(
+            pendingPlan.asset === 'USDC'
+              ? Math.round(pendingPlan.amount * 1_000_000)
+              : Math.round(pendingPlan.amount * 1_000_000_000)
+          ),
+          currency: pendingPlan.asset,
+          voiceTranscript: pendingPlan.transcript,
+          txSignature: result.signature,
+          status: 'confirmed',
+          resolutionSource: 'on_chain',
+          isLiveDevnet: true,
+          explorerUrl: result.explorerUrl,
+          createdAt: new Date().toISOString(),
+        };
+
+        onCompleteTransfer(txRecord, activeSolBalance, pendingPlan.recipient.id);
+        setLatestReceipt({
+          amount: pendingPlan.amount,
+          asset: pendingPlan.asset,
+          recipientName: pendingPlan.recipient.name,
+          signature: result.signature,
+          isLiveDevnet: true,
+          explorerUrl: result.explorerUrl,
+        });
+        setPendingPlan(null);
+        setChallengeInput('');
+        void refreshLiveDevnetBalances(connectedWallet.address);
+        speakText(
+          `Confirmed on Solana Devnet. You sent ${pendingPlan.amount} ${pendingPlan.asset} to ${pendingPlan.recipient.name}.`
+        );
+      } else {
+        // Honest Instant Sandbox Mode
+        await new Promise((r) => window.setTimeout(r, 420));
+
+        if (pendingPlan.asset === 'USDC') {
+          const sim = executeSimulatedTransfer({
+            walletConnected: true,
+            confirmedByUser: true,
+            senderWallet: DEMO_SENDER_WALLET,
+            senderBalanceUsdc: activeUsdcBalance,
+            amount: pendingPlan.amount,
+            currency: 'USDC',
+            recipient: pendingPlan.recipient,
+            resolutionSource: 'supabase',
+            voiceTranscript: pendingPlan.transcript,
+            autoCreateAta: true,
+          });
+          if (!sim.ok || !sim.tx) {
+            throw new Error(sim.spokenMessage);
+          }
+          const sandboxTx: TransactionRecord = {
+            ...sim.tx,
+            isLiveDevnet: false,
+          };
+          onCompleteTransfer(sandboxTx, sim.nextSenderBalance, pendingPlan.recipient.id);
+          setLatestReceipt({
+            amount: pendingPlan.amount,
+            asset: 'USDC',
+            recipientName: pendingPlan.recipient.name,
+            signature: sandboxTx.txSignature,
+            isLiveDevnet: false,
+          });
+        } else {
+          const nextSol = Math.max(
+            0,
+            Number((activeSolBalance - pendingPlan.amount - 0.000005).toFixed(6))
+          );
+          const sandboxSig = `SANDBOX_${Date.now().toString(36).toUpperCase()}`;
+          const sandboxTx: TransactionRecord = {
+            id: `tx-sandbox-${Date.now()}`,
+            recipientName: pendingPlan.recipient.name,
+            recipientWallet: pendingPlan.recipient.wallet,
+            amountUsdc: pendingPlan.amount,
+            rawUnits: String(Math.round(pendingPlan.amount * 1_000_000_000)),
+            currency: 'SOL',
+            voiceTranscript: pendingPlan.transcript,
+            txSignature: sandboxSig,
+            status: 'confirmed',
+            resolutionSource: 'supabase',
+            isLiveDevnet: false,
+            createdAt: new Date().toISOString(),
+          };
+          onCompleteTransfer(sandboxTx, nextSol, pendingPlan.recipient.id);
+          setLatestReceipt({
+            amount: pendingPlan.amount,
+            asset: 'SOL',
+            recipientName: pendingPlan.recipient.name,
+            signature: sandboxSig,
+            isLiveDevnet: false,
+          });
+        }
+
+        setPendingPlan(null);
+        setChallengeInput('');
+        speakText(
+          `Sandbox preview complete. Simulated ${pendingPlan.amount} ${pendingPlan.asset} to ${pendingPlan.recipient.name}. Switch to Live Devnet to broadcast on Solana.`
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Transaction was canceled or failed.';
+      setErrorBanner(msg);
+      speakText(`Transaction not completed. ${msg}`);
+    } finally {
+      setIsSigning(false);
+    }
   }, [
-    pendingTransfer,
-    walletConnected,
-    senderBalanceUsdc,
-    autoCreateAta,
+    pendingPlan,
+    executionMode,
+    connectedWallet,
+    activeSolBalance,
+    activeUsdcBalance,
     onCompleteTransfer,
-    speakOut,
+    refreshLiveDevnetBalances,
+    speakText,
   ]);
 
-  const handleCancelTransfer = useCallback(() => {
-    setPendingTransfer(null);
-    setVoiceStage('idle');
-    setStatusMessage('Pengiriman dibatalkan.');
-    speakOut('Pengiriman dibatalkan. Kamu kembali ke halaman beranda.', 'tick');
-  }, [speakOut]);
+  // Fetch live Jupiter Swap V2 Quote-Only (including scam token 403 block test!)
+  const runLiveSwapQuote = useCallback(
+    async (inputToken: string, outputToken: string, amount: number) => {
+      setSwapLoading(true);
+      setSwapBlockedMsg(null);
+      setSwapQuote(null);
+      setActiveSheet('swap');
+      setPhoneTab('home');
 
-  const processTranscript = useCallback(
-    async (spokenText: string) => {
-      const cleaned = spokenText.trim();
+      try {
+        const res = await fetch('/api/swap/quote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            inputToken,
+            outputToken,
+            amount,
+          }),
+        });
+        const data = (await res.json()) as {
+          error?: string;
+          spokenError?: string;
+          inputToken?: string;
+          outputToken?: string;
+          inAmountUi?: number;
+          outAmountUi?: number;
+          priceImpactPct?: number;
+          router?: string;
+          slippageBps?: number;
+          spokenSummary?: string;
+          latencyMs?: number;
+        };
+
+        if (!res.ok) {
+          const blockedText =
+            data.spokenError ||
+            data.error ||
+            `Blocked unverified token ${outputToken} (HTTP ${res.status}).`;
+          setSwapBlockedMsg(blockedText);
+          speakText(blockedText);
+          return;
+        }
+
+        const parsedQuote: SwapQuoteData = {
+          inputToken: data.inputToken ?? inputToken,
+          outputToken: data.outputToken ?? outputToken,
+          inAmountUi: data.inAmountUi ?? amount,
+          outAmountUi: data.outAmountUi ?? 0,
+          priceImpactPct: data.priceImpactPct ?? 0,
+          router: data.router ?? 'metis',
+          slippageBps: data.slippageBps ?? 50,
+          quoteOnly: true,
+          spokenSummary:
+            data.spokenSummary ??
+            `Quote-only preview: ${amount} ${inputToken} swaps for approximately ${data.outAmountUi ?? 0} ${outputToken}.`,
+          latencyMs: data.latencyMs,
+        };
+        setSwapQuote(parsedQuote);
+        speakText(parsedQuote.spokenSummary);
+      } catch {
+        const fallbackMsg =
+          'Could not reach Jupiter Swap V2 quote proxy right now. Please try again.';
+        setSwapBlockedMsg(fallbackMsg);
+        speakText(fallbackMsg);
+      } finally {
+        setSwapLoading(false);
+      }
+    },
+    [speakText]
+  );
+
+  // Unified voice/command processor
+  const processCommand = useCallback(
+    async (rawText: string) => {
+      const cleaned = rawText.trim();
       if (!cleaned) return;
 
-      setVoiceStage('processing');
-      setTranscript(cleaned);
-      setParsedIntent(null);
-      setLastInstruction(null);
-      setStatusMessage(null);
-      setMissingContactName(null);
+      setLastTranscript(cleaned);
+      setErrorBanner(null);
+      setIsProcessing(true);
 
-      // Step 2: Simulated scribe_v2 STT timing
-      const sttMs = 820;
+      try {
+        // Check active Layer 2 spoken challenge first
+        if (pendingPlan) {
+          const lower = cleaned.toLowerCase();
+          if (lower === 'cancel' || lower === 'no' || lower === 'stop') {
+            setPendingPlan(null);
+            setChallengeInput('');
+            speakText('Transfer canceled.');
+            return;
+          }
+          if (
+            matchesBrowserSpokenChallenge(cleaned, pendingPlan.challenge.digits) ||
+            lower === 'yes' ||
+            lower === 'confirm'
+          ) {
+            setIsProcessing(false);
+            await executePendingPlan();
+            return;
+          }
+        }
 
-      // Step 3: Intent Parsing (either Live Gemini API route or deterministic fallback)
-      let intent: PaymentIntent;
-      let nluMs = 12;
-      let engineLabel = 'Offline Regex Fallback';
-
-      if (nluMode === 'ai') {
-        const started = performance.now();
+        // Parse intent via server /api/intent (falls back cleanly to deterministic parser)
+        let intent: PaymentIntent;
         try {
           const res = await fetch('/api/intent', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               transcript: cleaned,
-              mode: 'ai',
+              mode: 'fallback',
               contactNames: contacts.map((c) => c.name),
             }),
           });
-          const data = await res.json();
-          if (!res.ok) {
-            setVoiceStage('error');
-            setLastHaptic('error');
-            setStatusMessage(
-              data.error ||
-                'Gemini AI NLU request failed. Switch to Offline Fallback or check GEMINI_API_KEY.'
+          if (res.ok) {
+            const payload = (await res.json()) as { intent: PaymentIntent };
+            intent = payload.intent;
+          } else {
+            intent = parseIntentFallback(cleaned);
+          }
+        } catch {
+          intent = parseIntentFallback(cleaned);
+        }
+
+        if (intent.action === 'check_balance') {
+          setPhoneTab('home');
+          setActiveSheet('none');
+          if (!isWalletReady) {
+            speakText(
+              'No Devnet wallet connected yet. Connect Phantom or Solflare, or switch to Instant Sandbox.'
             );
             return;
           }
-          intent = data.intent as PaymentIntent;
-          nluMs = Math.round(data.latencyMs ?? performance.now() - started);
-          engineLabel = 'Gemini 4 Hydrogen (Server API)';
-        } catch (err) {
-          setVoiceStage('error');
-          setLastHaptic('error');
-          setStatusMessage(
-            err instanceof Error ? err.message : 'Gagal menghubungi endpoint /api/intent.'
+          speakText(
+            `Your ${executionMode === 'devnet' ? 'Solana Devnet' : 'sandbox'} balance is ${activeSolBalance.toFixed(4)} SOL and ${activeUsdcBalance.toFixed(2)} USDC, about ${estimatedUsdTotal.toFixed(2)} dollars total.`
           );
           return;
         }
-      } else {
-        intent = parseIntentFallback(cleaned);
-        nluMs = 14;
-        engineLabel = 'Offline Regex Fallback';
-      }
 
-      setParsedIntent(intent);
-
-      // Stage 00: Factor 1 On-Device Voiceprint Gate (Picovoice Eagle)
-      const vpResult = verifySpeakerVoiceprint(voiceprintProfile, activeSpeaker, intent.action);
-      setLastVoiceprintResult(vpResult);
-
-      if (!vpResult.verified) {
-        const blockMsg =
-          vpResult.spokenMessage ?? VOICE_SCRIPTS.voiceprintBlocked(vpResult.scorePct);
-        setVoiceStage('error');
-        setStatusMessage(blockMsg);
-        setMetrics({ sttMs, nluMs, resolveMs: 0, txMs: 0, ttsMs: 95, engineLabel });
-        speakOut(blockMsg, vpResult.haptic);
-        return;
-      }
-
-      // Unified Voice Actions: Accessibility, Navigation & Queries
-      if (intent.action === 'help') {
-        const msg = VOICE_SCRIPTS.helpGuide();
-        setVoiceStage('idle');
-        setStatusMessage(msg);
-        setMetrics({ sttMs, nluMs, resolveMs: 0, txMs: 0, ttsMs: 105, engineLabel });
-        speakOut(msg, 'tick');
-        return;
-      }
-
-      if (intent.action === 'repeat') {
-        const fallbackNarration = narrateTabScreen(phoneTab, {
-          walletConnected,
-          senderBalanceUsdc,
-          senderBalanceSol,
-          contacts,
-          transactions,
-        });
-        const msg = spokenLine ?? fallbackNarration;
-        setVoiceStage('idle');
-        setStatusMessage(msg);
-        setMetrics({ sttMs, nluMs, resolveMs: 0, txMs: 0, ttsMs: 95, engineLabel });
-        speakOut(msg, 'tick');
-        return;
-      }
-
-      if (intent.action === 'confirm') {
-        if (pendingTransfer) {
-          await handleConfirmTransfer();
-        } else {
-          const msg = VOICE_SCRIPTS.noPendingConfirm();
-          setVoiceStage('idle');
-          setStatusMessage(msg);
-          speakOut(msg, 'tick');
+        if (intent.action === 'check_price') {
+          speakText(
+            `SOL is currently trading at approximately ${solUsdPrice.toFixed(2)} US dollars, and USDC is 1 dollar.`
+          );
+          return;
         }
-        return;
-      }
 
-      if (intent.action === 'cancel') {
-        if (pendingTransfer) {
-          handleCancelTransfer();
-        } else {
-          setVoiceStage('idle');
-          setStatusMessage('Tidak ada transaksi aktif untuk dibatalkan.');
-          speakOut('Tidak ada transaksi aktif untuk dibatalkan.', 'tick');
+        if (intent.action === 'navigate' || intent.action === 'list_contacts' || intent.action === 'read_history') {
+          const target = intent.targetTab ?? 'home';
+          setActiveSheet('none');
+          setPhoneTab(target);
+          if (target === 'contacts') {
+            speakText(
+              `Contacts screen. You have ${contacts.length} verified contacts: ${contacts
+                .slice(0, 4)
+                .map((c) => c.name)
+                .join(', ')}.`
+            );
+          } else if (target === 'history') {
+            const latest = transactions[0];
+            speakText(
+              latest
+                ? `History screen. Latest transfer was ${latest.amountUsdc} ${latest.currency} to ${latest.recipientName}.`
+                : 'History screen. No transfers recorded yet.'
+            );
+          } else {
+            speakText('Home screen.');
+          }
+          return;
         }
-        return;
-      }
 
-      if (intent.action === 'check_balance') {
-        setPhoneTab('home');
-        setPendingTransfer(null);
-        const msg = walletConnected
-          ? VOICE_SCRIPTS.balanceReadout(senderBalanceUsdc, senderBalanceSol)
-          : VOICE_SCRIPTS.walletDisconnected();
-        setVoiceStage('idle');
-        setStatusMessage(msg);
-        setMetrics({ sttMs, nluMs, resolveMs: 0, txMs: 0, ttsMs: 100, engineLabel });
-        speakOut(msg, 'tick');
-        return;
-      }
+        if (intent.action === 'swap_quote') {
+          const inToken = (intent.currency ?? 'USDC').toUpperCase();
+          const outToken = (
+            intent.outputCurrency ?? (inToken === 'USDC' ? 'SOL' : 'USDC')
+          ).toUpperCase();
+          const amount = intent.amount ?? 10;
+          setSwapInputToken(inToken === 'SOL' ? 'SOL' : 'USDC');
+          setSwapInputAmount(String(amount));
+          setIsProcessing(false);
+          await runLiveSwapQuote(inToken, outToken, amount);
+          return;
+        }
 
-      if (intent.action === 'navigate') {
-        const target: PhoneTabId = intent.targetTab ?? 'home';
-        setPendingTransfer(null);
-        setVoiceStage('idle');
-        const msg = narrateTabScreen(target, {
-          walletConnected,
-          senderBalanceUsdc,
-          senderBalanceSol,
-          contacts,
-          transactions,
-        });
-        setPhoneTab(target);
-        setStatusMessage(msg);
-        setMetrics({ sttMs, nluMs, resolveMs: 0, txMs: 0, ttsMs: 100, engineLabel });
-        speakOut(msg, 'tick');
-        return;
-      }
+        if (intent.action === 'send') {
+          if (!intent.recipient) {
+            speakText('Who would you like to send to? Say a saved contact name.');
+            return;
+          }
+          if (!intent.amount || intent.amount <= 0) {
+            speakText(`How much would you like to send to ${intent.recipient}?`);
+            return;
+          }
 
-      if (intent.action === 'list_contacts') {
-        setPendingTransfer(null);
-        setVoiceStage('idle');
-        const msg = narrateTabScreen('contacts', {
-          walletConnected,
-          senderBalanceUsdc,
-          senderBalanceSol,
-          contacts,
-          transactions,
-        });
-        setPhoneTab('contacts');
-        setStatusMessage(msg);
-        setMetrics({ sttMs, nluMs, resolveMs: 40, txMs: 0, ttsMs: 105, engineLabel });
-        speakOut(msg, 'tick');
-        return;
-      }
+          const resolution = resolveContact(contacts, intent.recipient);
+          if (resolution.status !== 'found' || !resolution.contact) {
+            const blocked = `Blocked for your safety: "${intent.recipient}" is not in your verified contacts. Bicara blocks unverified recipients to prevent blind signing.`;
+            setErrorBanner(blocked);
+            speakText(blocked);
+            return;
+          }
 
-      if (intent.action === 'read_history') {
-        setPendingTransfer(null);
-        setVoiceStage('idle');
-        const msg = narrateTabScreen('history', {
-          walletConnected,
-          senderBalanceUsdc,
-          senderBalanceSol,
-          contacts,
-          transactions,
-        });
-        setPhoneTab('history');
-        setStatusMessage(msg);
-        setMetrics({ sttMs, nluMs, resolveMs: 40, txMs: 0, ttsMs: 105, engineLabel });
-        speakOut(msg, 'tick');
-        return;
-      }
+          const asset: Currency =
+            String(intent.currency ?? 'USDC').toUpperCase() === 'SOL' ? 'SOL' : 'USDC';
+          await prepareTransferConfirmation(resolution.contact, intent.amount, asset, cleaned);
+          return;
+        }
 
-      // Payment Send Flow
-      setPhoneTab('home');
-      setPendingTransfer(null);
+        if (intent.action === 'help') {
+          speakText(
+            'Try saying: Check balance, Send 5 USDC to Ahmad, Send 0.01 SOL to My Wallet, Swap 10 USDC to SOL, or Open contacts.'
+          );
+          return;
+        }
 
-      const validation = validateIntent(intent);
-      if (!validation.valid) {
-        setVoiceStage('error');
-        const msg = validation.promptText ?? VOICE_SCRIPTS.unknownIntent();
-        setStatusMessage(msg);
-        setMetrics({ sttMs, nluMs, resolveMs: 0, txMs: 0, ttsMs: 110, engineLabel });
-        speakOut(msg, 'error');
-        return;
-      }
-
-      // Step 4: Contact Resolution (Supabase primary + On-Chain PDA fallback)
-      const resolution = resolveContact(contacts, intent.recipient ?? '');
-      const resolveMs = resolution.source === 'on_chain' ? 420 : 75;
-
-      if (resolution.status === 'not_found' || !resolution.contact) {
-        const name = intent.recipient ?? 'tersebut';
-        const msg = VOICE_SCRIPTS.contactNotFound(name);
-        setVoiceStage('error');
-        setMissingContactName(name);
-        setStatusMessage(msg);
-        setMetrics({ sttMs, nluMs, resolveMs, txMs: 0, ttsMs: 110, engineLabel });
-        speakOut(msg, 'error');
-        return;
-      }
-
-      if (resolution.status === 'ambiguous') {
-        const msg = VOICE_SCRIPTS.ambiguousContact(
-          resolution.candidates.map((c) => c.name)
+        speakText(
+          `I heard "${cleaned}". Try saying Check balance, Send 5 USDC to Ahmad, or Swap 10 USDC to SOL.`
         );
-        setVoiceStage('error');
-        setStatusMessage(msg);
-        setMetrics({ sttMs, nluMs, resolveMs, txMs: 0, ttsMs: 110, engineLabel });
-        speakOut(msg, 'error');
-        return;
+      } finally {
+        setIsProcessing(false);
       }
-
-      // Step 5: Mandatory Confirmation Modal (NEVER auto-send!)
-      const recipient = resolution.contact;
-      const source = resolution.source ?? 'supabase';
-      setPendingTransfer({
-        intent,
-        recipient,
-        resolutionSource: source,
-        transcript: cleaned,
-      });
-      setMirrorContactId(recipient.id);
-      setVoiceStage('confirming');
-      setMetrics({ sttMs, nluMs, resolveMs, txMs: 0, ttsMs: 105, engineLabel });
-      speakOut(
-        VOICE_SCRIPTS.confirmSend(
-          intent.amount!,
-          intent.currency ?? 'USDC',
-          recipient.name
-        ),
-        'confirm'
-      );
     },
     [
-      nluMode,
+      pendingPlan,
       contacts,
       transactions,
-      voiceprintProfile,
-      activeSpeaker,
-      phoneTab,
-      walletConnected,
-      senderBalanceUsdc,
-      senderBalanceSol,
-      spokenLine,
-      pendingTransfer,
-      handleConfirmTransfer,
-      handleCancelTransfer,
-      speakOut,
+      isWalletReady,
+      executionMode,
+      activeSolBalance,
+      activeUsdcBalance,
+      estimatedUsdTotal,
+      solUsdPrice,
+      executePendingPlan,
+      prepareTransferConfirmation,
+      runLiveSwapQuote,
+      speakText,
     ]
   );
 
-  // Triggered by the Landing Live Preview cards or Demo "Run Sample Send" CTA
+  // Auto-run clicked Live Preview scenario when landing routes directly to Demo
   useEffect(() => {
     if (demoTriggerNonce > 0 && demoTriggerNonce !== lastHandledDemoRef.current) {
       lastHandledDemoRef.current = demoTriggerNonce;
-      void processTranscript(demoCommand);
+      void processCommand(demoCommand);
     }
-  }, [demoTriggerNonce, demoCommand, processTranscript]);
+  }, [demoTriggerNonce, demoCommand, processCommand]);
 
-  const handleMicToggle = () => {
-    if (voiceStage === 'recording') {
-      recognitionRef.current?.stop();
-      setVoiceStage('idle');
+  // Browser Web Speech API microphone toggle
+  const handleToggleMic = () => {
+    if (typeof window === 'undefined') return;
+
+    if (isRecording && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
       return;
     }
 
-    if (voiceStage === 'processing' || voiceStage === 'sending') return;
+    const SpeechRecognitionCtor =
+      (window as unknown as { SpeechRecognition?: new () => BrowserSpeechRecognition })
+        .SpeechRecognition ??
+      (window as unknown as { webkitSpeechRecognition?: new () => BrowserSpeechRecognition })
+        .webkitSpeechRecognition;
 
-    setLastHaptic('listen');
-
-    const SpeechCtor =
-      typeof window !== 'undefined'
-        ? (
-            window as unknown as {
-              SpeechRecognition?: new () => BrowserSpeechRecognition;
-              webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
-            }
-          ).SpeechRecognition ||
-          (
-            window as unknown as {
-              webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
-            }
-          ).webkitSpeechRecognition
-        : undefined;
-
-    if (!SpeechCtor) {
-      setVoiceStage('recording');
-      setStatusMessage('Browser Speech API unavailable — simulating demo utterance...');
-      setTimeout(() => {
-        void processTranscript(pendingTransfer ? 'Yes' : 'Send 5 USDC to Ahmad');
-      }, 600);
+    if (!SpeechRecognitionCtor) {
+      setErrorBanner(
+        'Browser microphone recognition is unavailable here. Use the command bar or Quick Scenarios on the right.'
+      );
       return;
     }
 
-    try {
-      const rec = new SpeechCtor();
-      rec.lang = 'en-US';
-      rec.interimResults = false;
-      rec.maxAlternatives = 1;
+    setErrorBanner(null);
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
 
-      rec.onresult = (event) => {
-        const text = event.results[0]?.[0]?.transcript ?? '';
-        if (text) {
-          void processTranscript(text);
-        } else {
-          setVoiceStage('error');
-          setLastHaptic('error');
-          setStatusMessage('No speech detected. Try again or pick a sample command.');
-        }
-      };
+    recognition.onresult = (event) => {
+      const spoken = event.results?.[0]?.[0]?.transcript ?? '';
+      setIsRecording(false);
+      if (spoken) {
+        void processCommand(spoken);
+      }
+    };
+    recognition.onerror = () => {
+      setIsRecording(false);
+      setErrorBanner(
+        'Could not capture microphone audio. Tap a Quick Scenario or type a command below.'
+      );
+    };
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
 
-      rec.onerror = () => {
-        setVoiceStage('error');
-        setLastHaptic('error');
-        setStatusMessage(
-          'Microphone access blocked or unavailable. Use the text input or sample commands on the right.'
-        );
-      };
+    recognitionRef.current = recognition;
+    setIsRecording(true);
+    recognition.start();
+  };
 
-      rec.onend = () => {
-        setVoiceStage((curr) => (curr === 'recording' ? 'idle' : curr));
-      };
-
-      recognitionRef.current = rec;
-      setVoiceStage('recording');
-      setStatusMessage('Speak now... e.g. "Check balance" or "Send 5 USDC to Ahmad"');
-      rec.start();
-    } catch {
-      setVoiceStage('error');
-      setLastHaptic('error');
-      setStatusMessage('Failed to start browser microphone. Use the sample commands on the right.');
+  // Keypad handler for 2-Step Send Sheet
+  const handleKeypadPress = (key: string) => {
+    if (key === 'back') {
+      setSendAmountStr((prev) => (prev.length <= 1 ? '0' : prev.slice(0, -1)));
+      return;
     }
+    if (key === '.') {
+      setSendAmountStr((prev) => (prev.includes('.') ? prev : `${prev}.`));
+      return;
+    }
+    setSendAmountStr((prev) => {
+      if (prev === '0') return key;
+      if (prev.length >= 9) return prev;
+      return `${prev}${key}`;
+    });
   };
 
-  const handleCustomSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customCommand.trim()) return;
-    void processTranscript(customCommand);
-    setCustomCommand('');
+  const handleCreateContact = () => {
+    const trimmedName = newContactName.trim();
+    const trimmedWallet = newContactWallet.trim();
+    if (!trimmedName) {
+      setContactFormError('Enter a contact name.');
+      return;
+    }
+    if (!isValidSolanaPublicKey(trimmedWallet)) {
+      setContactFormError('Enter a valid Solana Base58 wallet address.');
+      return;
+    }
+    const created: Contact = {
+      id: `cnt-${Date.now()}`,
+      name: trimmedName,
+      wallet: trimmedWallet,
+      onChain: false,
+      hasUsdcAta: true,
+      balanceUsdc: 0,
+      createdAt: new Date().toISOString(),
+    };
+    onAddContact(created);
+    setNewContactName('');
+    setNewContactWallet('');
+    setContactFormError(null);
+    setShowAddContact(false);
+    speakText(`Added ${trimmedName} to your verified contacts.`);
   };
 
-  const mirrorContact = contacts.find((c) => c.id === mirrorContactId) ?? contacts[0];
-  const scribeKeyterms = buildScribeKeyterms(contacts);
-  const totalLatencyMs =
-    metrics.sttMs + metrics.nluMs + metrics.resolveMs + metrics.txMs + metrics.ttsMs;
-  const activeHapticInfo = lastHaptic ? HAPTIC_DESCRIPTIONS[lastHaptic] : null;
+  const filteredSendContacts = contacts.filter((c) =>
+    c.name.toLowerCase().includes(sendSearch.trim().toLowerCase())
+  );
 
-  const vpBlocked = lastVoiceprintResult !== null && !lastVoiceprintResult.verified;
+  const filteredContacts = contacts.filter(
+    (c) =>
+      c.name.toLowerCase().includes(contactSearch.trim().toLowerCase()) ||
+      c.wallet.toLowerCase().includes(contactSearch.trim().toLowerCase())
+  );
 
-  const pipelineSteps = [
+  const quickScenarios = [
     {
-      num: '00',
-      title: 'Optional Voiceprint Gate (Layer 1 — Convenience Only)',
-      detail: lastVoiceprintResult
-        ? lastVoiceprintResult.bypassed
-          ? 'Safe action bypass · accessibility open'
-          : lastVoiceprintResult.verified
-            ? `${lastVoiceprintResult.speakerLabel} · ${lastVoiceprintResult.scorePct !== null ? `${lastVoiceprintResult.scorePct}% measured` : 'Uncalibrated (sim)'}`
-            : `BLOCKED · ${lastVoiceprintResult.scorePct !== null ? `${lastVoiceprintResult.scorePct}% below threshold` : 'Unrecognized speaker (sim)'}`
-        : `${activeSpeaker === 'owner' ? voiceprintProfile.ownerLabel : 'Unrecognized Speaker'} · pending Gate A calibration`,
-      done: Boolean(lastVoiceprintResult?.verified),
-      blocked: vpBlocked,
-      active: false,
+      id: 'send-voice',
+      title: 'Send by Voice',
+      command:
+        executionMode === 'devnet' && connectedWallet
+          ? contacts.some((c) => c.wallet === connectedWallet.address)
+            ? 'Send 0.001 SOL to My Wallet'
+            : 'Send 0.01 SOL to Ahmad'
+          : 'Send 5 USDC to Ahmad',
+      description: 'Hear recipient, fees, and 3-digit challenge before signing.',
+      action: () => {
+        const targetCmd =
+          executionMode === 'devnet' && connectedWallet
+            ? contacts.some((c) => c.wallet === connectedWallet.address)
+              ? 'Send 0.001 SOL to My Wallet'
+              : 'Send 0.01 SOL to Ahmad'
+            : 'Send 5 USDC to Ahmad';
+        void processCommand(targetCmd);
+      },
     },
     {
-      num: '01',
-      title: 'Audio Capture & Haptics (expo-audio)',
-      detail: activeHapticInfo
-        ? `${transcript ? '16kHz PCM captured' : 'Tap-anywhere ready'} · ${activeHapticInfo.label}`
-        : 'Waiting for Tap-Anywhere or MicButton',
-      done: Boolean(transcript),
-      blocked: false,
-      active: voiceStage === 'recording',
+      id: 'stop-blind',
+      title: 'Stop Blind Signing',
+      command: 'Send 5 USDC to Reza',
+      description: 'Blocks an unverified recipient before any wallet popup opens.',
+      action: () => void processCommand('Send 5 USDC to Reza'),
     },
     {
-      num: '02',
-      title: 'ElevenLabs STT (scribe_v2)',
-      detail: transcript ? `"${transcript}"` : `${scribeKeyterms.length} nav + contact keyterms primed`,
-      done: Boolean(transcript),
-      blocked: false,
-      active: voiceStage === 'processing' && !parsedIntent,
+      id: 'swap-quote',
+      title: 'Live Jupiter Swap Quote',
+      command: 'Swap 10 USDC to SOL',
+      description: 'Fetches a real Quote-Only route via Jupiter Swap API V2.',
+      action: () => void processCommand('Swap 10 USDC to SOL'),
     },
     {
-      num: '03',
-      title: `Intent NLU (${nluMode === 'ai' ? 'Gemini AI' : 'Offline Fallback'})`,
-      detail: parsedIntent
-        ? parsedIntent.action === 'send'
-          ? `send · ${parsedIntent.amount ?? '—'} ${parsedIntent.currency ?? ''} → ${parsedIntent.recipient ?? '—'}`
-          : `${parsedIntent.action}${parsedIntent.targetTab ? ` → ${parsedIntent.targetTab}` : ''}`
-        : 'Extracts unified Payment + VoiceNav JSON',
-      done: Boolean(parsedIntent),
-      blocked: false,
-      active: voiceStage === 'processing',
-    },
-    {
-      num: '04',
-      title: 'Hybrid Contact Resolver',
-      detail: pendingTransfer
-        ? `${pendingTransfer.recipient.name} via ${pendingTransfer.resolutionSource === 'on_chain' ? 'ContactRegistry PDA' : 'Supabase'}`
-        : lastInstruction
-          ? 'Resolved & verified'
-          : 'Supabase primary + Anchor PDA fallback',
-      done: Boolean(pendingTransfer || lastInstruction),
-      blocked: false,
-      active: false,
-    },
-    {
-      num: '05',
-      title: 'Confirm + TTS (eleven_flash_v2_5)',
-      detail:
-        voiceStage === 'confirming'
-          ? 'Awaiting voice "Ya" or tap — never auto-sends'
-          : lastInstruction
-            ? 'Confirmed explicitly by User A'
-            : 'Spoken navbar + double haptic on send',
-      done: Boolean(lastInstruction),
-      blocked: false,
-      active: voiceStage === 'confirming',
-    },
-    {
-      num: '06',
-      title: 'MWA 2.0 Seed Vault + TransferChecked',
-      detail: lastInstruction
-        ? `rawAmount=${lastInstruction.rawAmount} (6 decimals)`
-        : 'Factor 2 biometric · solana:devnet',
-      done: Boolean(lastInstruction),
-      blocked: false,
-      active: voiceStage === 'sending',
+      id: 'eyes-free-balance',
+      title: 'Eyes-Free Check Balance',
+      command: 'Check balance',
+      description: 'Reads live SOL, USDC, and USD portfolio aloud hands-free.',
+      action: () => void processCommand('Check balance'),
     },
   ];
 
   return (
-    <section aria-label="Interactive Bicara Solana Mobile Prototype" className="space-y-5">
-      {/* Compact Hero / Context Header */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 pb-4 border-b border-[#E2E6DC]">
-        <div className="space-y-1.5 max-w-2xl">
-          <p className="text-xs font-semibold text-[#457249]">
-            Interactive Seeker Simulator · Built Blind-First for Everyone · Voice Identifies, Hardware Authorizes
+    <section aria-label="Bicara Interactive Demo" className="space-y-6">
+      {/* Minimal Clean Top Bar: Title + Dual Execution Mode Switcher */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-[#E2E6DC]">
+        <div className="space-y-1">
+          <h1 className="font-display text-2xl sm:text-3xl font-black tracking-tight text-[#1E3124]">
+            Interactive Mobile Demo
+          </h1>
+          <p className="text-sm text-[#526658]">
+            Exact mirror of the Bicara Android app—test live Solana Devnet transfers or explore
+            instantly in Sandbox.
           </p>
-          <h3 className="font-display text-xl sm:text-2xl font-black tracking-tight text-[#1E3124] [text-wrap:balance]">
-            Spoken Transaction Verification Sandbox
-          </h3>
         </div>
 
-        {/* Engine, Audio & Reset Controls */}
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          {/* Segmented Execution Mode Switch */}
           <div
             role="group"
-            aria-label="Intent Parser Engine"
+            aria-label="Execution mode"
             className="inline-flex items-center p-1 bg-[#EEF3E8] border border-[#DCE4D4] rounded-full"
           >
             <button
               type="button"
-              onClick={() => setNluMode('fallback')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                nluMode === 'fallback'
+              onClick={() => {
+                setExecutionMode('sandbox');
+                setPendingPlan(null);
+                setErrorBanner(null);
+              }}
+              className={`px-3.5 py-1.5 text-xs font-semibold rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                executionMode === 'sandbox'
                   ? 'bg-[#356341] text-white'
                   : 'text-[#526658] hover:text-[#1E3124]'
               }`}
             >
-              Offline Fallback
+              Instant Sandbox
             </button>
             <button
               type="button"
-              onClick={() => setNluMode('ai')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                nluMode === 'ai'
+              onClick={() => {
+                setExecutionMode('devnet');
+                setPendingPlan(null);
+                setErrorBanner(null);
+                setDetectedWallets(detectBrowserSolanaWallets());
+              }}
+              className={`px-3.5 py-1.5 text-xs font-semibold rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                executionMode === 'devnet'
                   ? 'bg-[#356341] text-white'
                   : 'text-[#526658] hover:text-[#1E3124]'
               }`}
             >
-              Gemini AI NLU
+              Live Solana Devnet
             </button>
           </div>
 
           <button
             type="button"
-            onClick={() => setTtsEnabled((v) => !v)}
-            aria-pressed={ttsEnabled}
-            aria-label={ttsEnabled ? 'Mute TTS voice' : 'Enable TTS voice'}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#1E3124] bg-white border border-[#D4DDD0] hover:border-[#356341] rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            onClick={() => {
+              setTtsEnabled((v) => !v);
+              if (ttsEnabled && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+              }
+            }}
+            aria-label={ttsEnabled ? 'Mute spoken voice' : 'Unmute spoken voice'}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-white border border-[#DCE4D4] hover:border-[#356341] text-[#1E3124] rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             {ttsEnabled ? (
-              <>
-                <Volume2 className="w-3.5 h-3.5 text-[#356341]" />
-                <span>TTS On</span>
-              </>
+              <Volume2 className="w-3.5 h-3.5 text-[#356341]" aria-hidden="true" />
             ) : (
-              <>
-                <VolumeX className="w-3.5 h-3.5 text-[#788A7D]" />
-                <span>TTS Muted</span>
-              </>
+              <VolumeX className="w-3.5 h-3.5 text-[#788A7D]" aria-hidden="true" />
             )}
+            <span>{ttsEnabled ? 'Voice On' : 'Muted'}</span>
           </button>
 
           <button
             type="button"
             onClick={() => {
               onResetBalances();
-              setLastDeltaContactId(null);
-              setLastDeltaAmount(0);
-              setVoiceStage('idle');
-              setStatusMessage(null);
-              setPendingTransfer(null);
-              setLastInstruction(null);
-              setLastVoiceprintResult(null);
-              setActiveSpeaker('owner');
+              setPendingPlan(null);
+              setLatestReceipt(null);
+              setErrorBanner(null);
+              setActiveSheet('none');
+              setPhoneTab('home');
+              setHomeSurface('visual');
               setScreenCurtain(false);
+              speakText('Demo reset.');
             }}
-            aria-label="Reset Devnet demo balances"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#526658] hover:text-[#1E3124] bg-white border border-[#D4DDD0] rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            aria-label="Reset demo state"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white border border-[#DCE4D4] hover:border-[#356341] text-[#526658] hover:text-[#1E3124] rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Reset Devnet</span>
+            <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Reset</span>
           </button>
         </div>
       </div>
 
-      {/* Eyes-Free Accessibility & Speaker Verification Simulator Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white border border-[#E2E6DC] rounded-2xl shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 text-xs text-[#526658]">
-            <Fingerprint className="w-4 h-4 text-[#356341]" aria-hidden="true" />
-            <span className="font-semibold text-[#1E3124]">Speaker Voiceprint:</span>
-          </div>
-
-          <div
-            role="group"
-            aria-label="Speaker Identity Simulation"
-            className="inline-flex items-center p-1 bg-[#EEF3E8] border border-[#DCE4D4] rounded-full"
-          >
-            <button
-              type="button"
-              data-testid="speaker-owner"
-              onClick={() => {
-                setActiveSpeaker('owner');
-                setLastVoiceprintResult(null);
-              }}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors whitespace-nowrap cursor-pointer ${
-                activeSpeaker === 'owner'
-                  ? 'bg-[#356341] text-white'
-                  : 'text-[#526658] hover:text-[#1E3124]'
-              }`}
-            >
-              User A (Owner · Sim)
-            </button>
-            <button
-              type="button"
-              data-testid="speaker-impostor"
-              onClick={() => {
-                setActiveSpeaker('impostor');
-                setLastVoiceprintResult(null);
-              }}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors whitespace-nowrap cursor-pointer ${
-                activeSpeaker === 'impostor'
-                  ? 'bg-[#DC2626] text-white'
-                  : 'text-[#526658] hover:text-[#1E3124]'
-              }`}
-            >
-              Impostor B (Unrecognized · Sim)
-            </button>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            data-testid="open-onboarding"
-            onClick={() => {
-              setScreenCurtain(false);
-              setShowOnboarding(true);
-            }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#1E3124] bg-[#FAF9F5] hover:bg-[#EEF3E8] border border-[#D4DDD0] rounded-full transition-colors whitespace-nowrap cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#356341]" aria-hidden="true" />
-            <span>Voice Onboarding</span>
-          </button>
-
-          <button
-            type="button"
-            data-testid="toggle-eyes-free"
-            aria-pressed={eyesFreeMode}
-            onClick={() => {
-              const next = !eyesFreeMode;
-              setEyesFreeMode(next);
-              if (next) {
-                speakOut(
-                  'Eyes-free mode enabled. All screens are spoken and tap anywhere to speak.',
-                  'tick'
-                );
-              }
-            }}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-full border transition-colors whitespace-nowrap cursor-pointer ${
-              eyesFreeMode
-                ? 'bg-[#EEF5EA] border-[#B4D0AF] text-[#2E6B40]'
-                : 'bg-[#FAF9F5] border-[#D4DDD0] text-[#526658] hover:text-[#1E3124]'
-            }`}
-          >
-            <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>{eyesFreeMode ? 'Eyes-Free: On' : 'Eyes-Free: Off'}</span>
-          </button>
-
-          <button
-            type="button"
-            data-testid="toggle-curtain"
-            aria-pressed={screenCurtain}
-            onClick={() => {
-              const next = !screenCurtain;
-              setScreenCurtain(next);
-              if (next) {
-                setEyesFreeMode(true);
-                speakOut(
-                  'Screen curtain enabled for blind-first demo. Tap anywhere on screen to speak.',
-                  'tick'
-                );
-              }
-            }}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-full border transition-colors whitespace-nowrap cursor-pointer ${
-              screenCurtain
-                ? 'bg-[#1E3124] border-[#1E3124] text-white'
-                : 'bg-[#FAF9F5] border-[#D4DDD0] text-[#1E3124] hover:border-[#356341]'
-            }`}
-          >
-            {screenCurtain ? (
-              <Eye className="w-3.5 h-3.5" aria-hidden="true" />
-            ) : (
-              <EyeOff className="w-3.5 h-3.5" aria-hidden="true" />
-            )}
-            <span>{screenCurtain ? 'Disable Screen Curtain' : 'Screen Curtain (Blind Demo)'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main 12-Column Split: Seeker Phone Simulator (5 cols) + Live Pipeline & Two-Phone Mirror (7 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* LEFT COLUMN: Phone A — Bicara Seeker Mobile Simulator (High-Contrast Dark OLED Device Preview) */}
-        <div className="lg:col-span-5 flex flex-col items-center">
-          <div className="w-full max-w-[390px] bg-[#0F0F0F] border-4 border-[#1E3124] rounded-[36px] overflow-hidden shadow-[0_24px_60px_rgba(30,49,36,0.2)] flex flex-col h-[710px] relative">
-            {/* Phone Status Strip */}
-            <div className="px-5 pt-3 pb-2 flex items-center justify-between gap-2 text-[11px] font-mono text-[#71717A] border-b border-white/10">
-              <span className="whitespace-nowrap">Seeker · MWA</span>
-              <span className="whitespace-nowrap">
-                {voiceprintProfile.enrolled ? 'Eagle Ready' : 'Unenrolled'} · devnet
-              </span>
-            </div>
-
-            {/* Phone Top Bar */}
-            <div className="px-4 py-2.5 flex items-center justify-between gap-2 border-b border-white/10">
-              <div className="flex items-center gap-2">
-                <span className="font-display text-base font-bold tracking-tight text-[#F4F4F5]">
-                  Bicara
-                </span>
-                <span className="text-[11px] font-mono text-[#71717A]">
-                  {activeSpeaker === 'owner' ? 'User A' : 'Impostor B'}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={onToggleWallet}
-                aria-label={walletConnected ? 'Disconnect Solana wallet' : 'Connect Solana wallet'}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-mono transition-colors cursor-pointer whitespace-nowrap ${
-                  walletConnected
-                    ? 'bg-[#1A1A1A] border border-white/15 text-[#F4F4F5] hover:border-[#CCFF00]/50'
-                    : 'bg-[#CCFF00] text-[#0F0F0F] font-sans font-bold hover:bg-[#B3E600]'
-                }`}
-              >
-                <Wallet className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>
-                  {walletConnected
-                    ? truncateWallet(DEMO_SENDER_WALLET, 4, 3)
-                    : 'Connect Wallet'}
-                </span>
-              </button>
-            </div>
-
-            {/* Accessible Spoken Narration & Haptic Cue Bar */}
-            {eyesFreeMode && (
-              <div
-                aria-live="polite"
-                data-testid="spoken-cue-bar"
-                className="px-3.5 py-2 bg-[#161616] border-b border-white/10 space-y-1"
-              >
-                <div className="flex items-center justify-between gap-2 text-[10px] font-mono">
-                  <span className="text-[#CCFF00] truncate">
-                    {activeHapticInfo ? `Haptic: ${activeHapticInfo.label}` : 'Eyes-Free Audio Active'}
-                  </span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => void processTranscript('Ulangi')}
-                      className="inline-flex items-center gap-0.5 text-[#94A3B8] hover:text-[#F8FAFC] cursor-pointer"
-                    >
-                      <RotateCcw className="w-3 h-3" aria-hidden="true" />
-                      <span>Ulangi</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void processTranscript('Bantuan')}
-                      className="inline-flex items-center gap-0.5 text-[#94A3B8] hover:text-[#F8FAFC] cursor-pointer"
-                    >
-                      <HelpCircle className="w-3 h-3" aria-hidden="true" />
-                      <span>Bantuan</span>
-                    </button>
-                  </div>
+      {/* Main Focal Stage: Centered 1:1 Mobile App + Compact Judge Scenario Rail */}
+      <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-2">
+        {/* FOCAL ANCHOR: 1:1 Bicara Mobile App Chassis (#0F0F0F + #CCFF00) */}
+        <div className="lg:col-span-6 flex justify-center">
+          <div className="w-full max-w-[392px] h-[760px] rounded-[42px] bg-[#0F0F0F] text-white border-[8px] border-[#1F2721] shadow-[0_24px_60px_rgba(30,49,36,0.16)] flex flex-col overflow-hidden relative">
+            {/* Screen Curtain Privacy Overlay (Scoped to Bicara Screens) */}
+            {screenCurtain && (
+              <div className="absolute inset-0 z-50 bg-black flex flex-col justify-between p-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono text-[#737373]">SCREEN CURTAIN</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScreenCurtain(false);
+                      speakText('Screen Curtain disabled.');
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1A1A1A] border border-[#333333] text-xs font-semibold text-white cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-[#CCFF00]" aria-hidden="true" />
+                    <span>Exit Curtain</span>
+                  </button>
                 </div>
-                <p className="text-[11px] text-[#CBD5E1] leading-snug line-clamp-2">
-                  {spokenLine ?? 'Sentuh layar di mana saja lalu ucapkan perintah.'}
+
+                <button
+                  type="button"
+                  onClick={handleToggleMic}
+                  className="flex-1 flex flex-col items-center justify-center gap-4 text-center cursor-pointer"
+                >
+                  <div
+                    className={`w-24 h-24 rounded-full border-2 flex items-center justify-center transition-transform ${
+                      isRecording
+                        ? 'border-[#CCFF00] bg-[#CCFF00]/15 scale-105'
+                        : 'border-[#2E2E2E] bg-[#121212]'
+                    }`}
+                  >
+                    <Mic
+                      className={`w-8 h-8 ${isRecording ? 'text-[#CCFF00]' : 'text-[#8C8C8C]'}`}
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <p className="text-xs font-mono tracking-widest text-[#8C8C8C]">
+                    {isRecording
+                      ? 'LISTENING...'
+                      : isSigning
+                        ? 'WAITING FOR WALLET...'
+                        : isProcessing
+                          ? 'PROCESSING...'
+                          : 'TAP ANYWHERE TO SPEAK'}
+                  </p>
+                </button>
+
+                <p className="text-[11px] text-[#525252] text-center">
+                  Display hidden for privacy. Audio narration remains active.
                 </p>
               </div>
             )}
 
-            {/* Phone Screen Body */}
-            <div className="flex-1 p-4 overflow-hidden flex flex-col relative">
-              {phoneTab === 'home' && (
-                <div
-                  onClick={(e) => {
-                    if (!eyesFreeMode) return;
-                    const target = e.target as HTMLElement;
-                    if (target.closest('button, a, input, select, label')) return;
-                    handleMicToggle();
+            {/* Mobile Top Header (Matches OPPO /mobile/app/(tabs)/index.tsx 1:1) */}
+            <div className="px-5 pt-5 pb-3 flex items-center justify-between border-b border-[#1E1E1E] shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-[#CCFF00] text-[#0F0F0F] flex items-center justify-center shrink-0">
+                  <AudioLines className="w-5 h-5" strokeWidth={2.5} aria-hidden="true" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-base font-bold leading-tight text-white truncate">Bicara</p>
+                  <p className="text-[11px] font-medium text-[#8C8C8C] truncate">
+                    {executionMode === 'devnet' ? 'Solana Devnet' : 'Sandbox'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = homeSurface === 'eyes-free' ? 'visual' : 'eyes-free';
+                    setHomeSurface(next);
+                    setPhoneTab('home');
+                    setActiveSheet('none');
+                    speakText(
+                      next === 'eyes-free'
+                        ? 'Eyes-free mode. Tap anywhere on the canvas to speak.'
+                        : 'Visual Home.'
+                    );
                   }}
-                  className={`flex flex-col h-full justify-between ${
-                    eyesFreeMode ? 'cursor-pointer' : ''
+                  className={`min-h-[36px] px-3 rounded-full text-xs font-semibold border transition-colors cursor-pointer whitespace-nowrap ${
+                    homeSurface === 'eyes-free'
+                      ? 'bg-[#CCFF00] text-[#0F0F0F] border-[#CCFF00]'
+                      : 'bg-[#1A1A1A] text-[#D4D4D4] border-[#2E2E2E] hover:border-[#CCFF00]'
                   }`}
                 >
-                  {/* Balance Display */}
-                  <div className="text-center pt-1 space-y-1">
-                    <div className="text-xs text-[#94A3B8]">Saldo Devnet USDC</div>
-                    <div
-                      data-testid="sender-balance"
-                      className="text-3xl font-bold font-mono tabular-nums text-[#F8FAFC] tracking-tight"
+                  {homeSurface === 'eyes-free' ? 'Visual' : 'Eyes-Free'}
+                </button>
+
+                {executionMode === 'devnet' ? (
+                  connectedWallet ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleDisconnectWallet()}
+                      title="Click to disconnect Devnet wallet"
+                      className="min-h-[36px] px-3 rounded-full text-xs font-mono font-semibold bg-[#1E2A14] text-[#CCFF00] border border-[#CCFF00]/40 cursor-pointer whitespace-nowrap"
                     >
-                      {walletConnected ? `${senderBalanceUsdc.toFixed(2)} USDC` : '—.— USDC'}
-                    </div>
-                    <div className="text-xs font-mono tabular-nums text-[#64748B]">
-                      {walletConnected
-                        ? `${senderBalanceSol.toFixed(3)} SOL gas · Eagle + MWA`
-                        : 'Hubungkan wallet untuk transaksi'}
-                    </div>
-                  </div>
-
-                  {/* VoiceFeedback Waveform & Transcript Zone */}
-                  <div className="my-2 min-h-[112px] flex flex-col items-center justify-center space-y-2.5 px-1">
-                    {voiceStage === 'recording' ? (
-                      <div
-                        className="flex items-center justify-center gap-1.5 h-12"
-                        aria-label="Recording voice waveform"
-                      >
-                        {WAVEFORM_HEIGHTS.map((h, i) => (
-                          <motion.span
-                            key={i}
-                            className="w-1.5 rounded-full bg-[#EF4444]"
-                            style={{ height: 40 }}
-                            animate={{ scaleY: [0.25, h, 0.35] }}
-                            transition={{
-                              duration: 0.65,
-                              repeat: Infinity,
-                              delay: i * 0.05,
-                              ease: 'easeInOut',
-                            }}
-                          />
-                        ))}
-                      </div>
-                    ) : transcript ? (
-                      <div className="w-full p-2.5 bg-[#14171A] border border-[#22272D] rounded-xl text-center space-y-1">
-                        <div className="text-[10px] font-mono text-[#64748B]">
-                          scribe_v2 Transcript ·{' '}
-                          {lastVoiceprintResult
-                            ? lastVoiceprintResult.verified
-                              ? `Voiceprint ${lastVoiceprintResult.scorePct !== null ? `${lastVoiceprintResult.scorePct}%` : 'Sim'} ✓`
-                              : `Voiceprint ${lastVoiceprintResult.scorePct !== null ? `${lastVoiceprintResult.scorePct}%` : 'Sim'} BLOCKED`
-                            : 'Idle'}
-                        </div>
-                        <p className="text-sm font-medium text-[#F8FAFC]">
-                          &ldquo;{transcript}&rdquo;
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-[#64748B] text-center max-w-[260px] leading-relaxed">
-                        {eyesFreeMode
-                          ? 'Eyes-Free Mode: tap anywhere and say "Check balance", "Open contacts", or "Send 5 USDC to Ahmad".'
-                          : 'Tap the microphone and say the amount and recipient, e.g. "Send 5 USDC to Ahmad".'}
-                      </p>
-                    )}
-
-                    {/* Feedback Banner (Success / Error / Info) */}
-                    {statusMessage && (
-                      <div
-                        role={voiceStage === 'error' ? 'alert' : 'status'}
-                        data-testid="phone-status-banner"
-                        className={`w-full p-2.5 rounded-xl border text-xs leading-relaxed flex items-start gap-2 ${
-                          voiceStage === 'success'
-                            ? 'bg-[#0F1F15] border-[#22C55E]/40 text-[#86EFAC]'
-                            : voiceStage === 'error'
-                              ? 'bg-[#211214] border-[#EF4444]/40 text-[#FCA5A5]'
-                              : 'bg-[#14171A] border-[#262B30] text-[#CBD5E1]'
-                        }`}
-                      >
-                        {voiceStage === 'success' ? (
-                          <CheckCircle2 className="w-4 h-4 text-[#22C55E] shrink-0 mt-0.5" />
-                        ) : voiceStage === 'error' ? (
-                          vpBlocked ? (
-                            <ShieldAlert className="w-4 h-4 text-[#EF4444] shrink-0 mt-0.5" />
-                          ) : (
-                            <AlertCircle className="w-4 h-4 text-[#EF4444] shrink-0 mt-0.5" />
-                          )
-                        ) : null}
-                        <div className="space-y-1.5 flex-1">
-                          <p>{statusMessage}</p>
-                          {missingContactName && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPrefillContactName(missingContactName);
-                                handleSelectPhoneTab('contacts');
-                              }}
-                              className="text-xs font-medium text-[#22C55E] hover:underline cursor-pointer"
-                            >
-                              Tambah &ldquo;{missingContactName}&rdquo; ke Kontak →
-                            </button>
-                          )}
-                          {voiceStage === 'error' && nluMode === 'ai' && !vpBlocked && (
-                            <button
-                              type="button"
-                              onClick={() => setNluMode('fallback')}
-                              className="block text-xs font-medium text-[#4ADE80] hover:underline cursor-pointer"
-                            >
-                              Gunakan Offline Fallback Parser
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Signature 108px MicButton */}
-                  <div className="flex flex-col items-center pb-2 space-y-2.5">
-                    <div className="relative flex items-center justify-center">
-                      {voiceStage === 'recording' && (
-                        <motion.span
-                          aria-hidden="true"
-                          className="absolute w-32 h-32 rounded-full border-2 border-[#EF4444]/60"
-                          animate={{ scale: [0.95, 1.25], opacity: [0.7, 0] }}
-                          transition={{ duration: 1.1, repeat: Infinity, ease: 'easeOut' }}
-                        />
-                      )}
-                      <motion.button
-                        type="button"
-                        onClick={handleMicToggle}
-                        disabled={voiceStage === 'processing' || voiceStage === 'sending'}
-                        aria-label={
-                          voiceStage === 'recording'
-                            ? 'Stop recording voice'
-                            : 'Tap to speak payment or navigation command'
+                      {truncateWallet(connectedWallet.address)}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={connectingWallet}
+                      onClick={() => {
+                        const first = detectedWallets[0];
+                        if (first) {
+                          void handleConnectBrowserWallet(first);
+                        } else {
+                          setErrorBanner(
+                            'No Phantom or Solflare extension detected in this browser. Install Phantom/Solflare or use Instant Sandbox.'
+                          );
                         }
-                        whileTap={{ scale: 0.96 }}
-                        className={`w-[104px] h-[104px] rounded-full flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CCFF00] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0F0F0F] ${
-                          voiceStage === 'recording'
-                            ? 'bg-[#EF4444] text-white'
-                            : voiceStage === 'processing' || voiceStage === 'sending'
-                              ? 'bg-[#1A1A1A] text-[#A1A1AA] border border-white/15'
-                              : 'bg-[#CCFF00] hover:bg-[#B3E600] text-[#0F0F0F] shadow-[0_0_24px_rgba(204,255,0,0.3)]'
-                        }`}
+                      }}
+                      className="min-h-[36px] px-3 rounded-full text-xs font-bold bg-[#CCFF00] text-[#0F0F0F] cursor-pointer whitespace-nowrap"
+                    >
+                      {connectingWallet ? 'Connecting...' : 'Connect'}
+                    </button>
+                  )
+                ) : (
+                  <span className="min-h-[36px] px-3 rounded-full text-xs font-mono text-[#A3A3A3] bg-[#1A1A1A] border border-[#2A2A2A] inline-flex items-center">
+                    {truncateWallet(DEMO_SENDER_WALLET)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Mobile Scrollable Body */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+              {/* SHEET A: 2-STEP SEND FLOW (Recipient -> Amount) */}
+              {activeSheet === 'send-recipient' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setActiveSheet('none')}
+                      className="min-h-[44px] min-w-[44px] -ml-2 inline-flex items-center justify-center text-[#A3A3A3] hover:text-white cursor-pointer"
+                      aria-label="Back to home"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <h2 className="text-base font-bold text-white">Select Recipient</h2>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveSheet('none');
+                        setPhoneTab('contacts');
+                        setShowAddContact(true);
+                      }}
+                      className="min-h-[44px] px-2 text-xs font-semibold text-[#CCFF00] cursor-pointer"
+                    >
+                      + New
+                    </button>
+                  </div>
+
+                  <div className="relative">
+                    <Search
+                      className="w-4 h-4 text-[#737373] absolute left-3.5 top-1/2 -translate-y-1/2"
+                      aria-hidden="true"
+                    />
+                    <input
+                      type="text"
+                      value={sendSearch}
+                      onChange={(e) => setSendSearch(e.target.value)}
+                      placeholder="Search verified contacts..."
+                      className="w-full h-11 pl-10 pr-4 rounded-2xl bg-[#1A1A1A] border border-[#2B2B2B] text-sm text-white placeholder:text-[#737373] focus:outline-none focus:border-[#CCFF00]"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    {filteredSendContacts.map((contact) => (
+                      <button
+                        key={contact.id}
+                        type="button"
+                        onClick={() => {
+                          setSendRecipient(contact);
+                          setSendAsset(executionMode === 'devnet' ? 'SOL' : 'USDC');
+                          setSendAmountStr(executionMode === 'devnet' ? '0.001' : '5');
+                          setActiveSheet('send-amount');
+                        }}
+                        className="w-full min-h-[60px] px-3.5 py-3 rounded-2xl bg-[#1A1A1A] border border-[#262626] hover:border-[#CCFF00]/60 flex items-center justify-between gap-3 text-left transition-colors cursor-pointer"
                       >
-                        {voiceStage === 'processing' || voiceStage === 'sending' ? (
-                          <Loader2 className="w-10 h-10 animate-spin" />
-                        ) : voiceStage === 'recording' ? (
-                          <MicOff className="w-10 h-10" />
-                        ) : (
-                          <Mic className="w-10 h-10" />
-                        )}
-                      </motion.button>
-                    </div>
-                    <span className="text-xs font-medium text-[#94A3B8]">
-                      {voiceStage === 'recording'
-                        ? 'Bicara sekarang... (ketuk lagi untuk selesai)'
-                        : voiceStage === 'processing'
-                          ? 'Memverifikasi sidik suara & perintah...'
-                          : voiceStage === 'sending'
-                            ? 'Menandatangani via MWA Seed Vault...'
-                            : eyesFreeMode
-                              ? 'Sentuh layar di mana saja untuk bicara'
-                              : 'Tekan dan bicara'}
-                    </span>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-full bg-[#262626] text-[#CCFF00] text-xs font-bold flex items-center justify-center shrink-0">
+                            {getInitials(contact.name)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-white truncate">
+                              {contact.name}
+                            </p>
+                            <p className="text-xs font-mono text-[#8C8C8C] truncate">
+                              {truncateWallet(contact.wallet)}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-[11px] font-semibold text-[#CCFF00] shrink-0">
+                          Verified
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
 
-              {phoneTab === 'contacts' && (
-                <PhoneContactsTab
-                  contacts={contacts}
-                  onAddContact={onAddContact}
-                  onDeleteContact={onDeleteContact}
-                  onSelectForQuickSend={(name) => {
-                    void processTranscript(`Send 5 USDC to ${name}`);
-                  }}
-                  prefillName={prefillContactName}
-                  onClearPrefill={() => setPrefillContactName(null)}
-                />
-              )}
-
-              {phoneTab === 'history' && <PhoneHistoryTab transactions={transactions} />}
-
-              {/* Mandatory TransactionConfirm Bottom Sheet Overlay */}
-              {pendingTransfer && (
-                <motion.div
-                  initial={{ opacity: 0, y: 24 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.18 }}
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label="Konfirmasi Pengiriman USDC"
-                  className="absolute inset-x-0 bottom-0 z-20 bg-[#14171A] border-t border-[#2E3640] rounded-t-2xl p-4 space-y-3 shadow-2xl shadow-black"
-                >
-                  <div className="w-10 h-1 bg-[#2E3640] rounded-full mx-auto" aria-hidden="true" />
-                  <div className="space-y-0.5">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-[#F8FAFC]">
-                        Konfirmasi Pengiriman
-                      </h3>
-                      <span className="text-[11px] font-mono text-[#4ADE80]">
-                        TransferChecked
-                      </span>
+              {activeSheet === 'send-amount' && sendRecipient && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setActiveSheet('send-recipient')}
+                      className="min-h-[44px] min-w-[44px] -ml-2 inline-flex items-center justify-center text-[#A3A3A3] hover:text-white cursor-pointer"
+                      aria-label="Back to select recipient"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <div className="text-center">
+                      <p className="text-xs text-[#8C8C8C]">Sending to</p>
+                      <p className="text-sm font-bold text-white">{sendRecipient.name}</p>
                     </div>
-                    <p className="text-[11px] text-[#94A3B8]">
-                      Ucapkan &ldquo;Ya&rdquo; / &ldquo;Batal&rdquo; atau ketuk tombol. Factor 1 Voiceprint ✓ · Factor 2 MWA Seed Vault.
+                    <div className="w-10" />
+                  </div>
+
+                  {/* Asset Switcher SOL / USDC */}
+                  <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-[#1A1A1A] border border-[#262626]">
+                    {(['SOL', 'USDC'] as const).map((asset) => (
+                      <button
+                        key={asset}
+                        type="button"
+                        onClick={() => {
+                          setSendAsset(asset);
+                          setSendAmountStr(asset === 'SOL' ? '0.001' : '5');
+                        }}
+                        className={`min-h-[40px] rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                          sendAsset === asset
+                            ? 'bg-[#CCFF00] text-[#0F0F0F]'
+                            : 'text-[#A3A3A3] hover:text-white'
+                        }`}
+                      >
+                        {asset}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Amount Display */}
+                  <div className="py-4 text-center space-y-1">
+                    <p className="text-4xl font-bold font-mono tabular-nums text-white tracking-tight">
+                      {sendAmountStr}{' '}
+                      <span className="text-xl text-[#CCFF00]">{sendAsset}</span>
+                    </p>
+                    <p className="text-xs font-mono tabular-nums text-[#8C8C8C]">
+                      Available:{' '}
+                      {sendAsset === 'SOL'
+                        ? `${activeSolBalance.toFixed(4)} SOL`
+                        : `${activeUsdcBalance.toFixed(2)} USDC`}
                     </p>
                   </div>
 
-                  <div className="bg-[#0B0D0E] border border-[#22272D] rounded-xl p-3 space-y-1.5 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#94A3B8]">Kepada</span>
-                      <span className="font-semibold text-[#F8FAFC]">
-                        {pendingTransfer.recipient.name}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#94A3B8]">Wallet Address</span>
-                      <span
-                        data-testid="confirm-wallet"
-                        className="font-mono text-[#E2E8F0] tabular-nums"
+                  {/* Quick Presets */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {(sendAsset === 'SOL'
+                      ? ['0.001', '0.01', '0.05', '0.1']
+                      : ['1', '5', '10', '20']
+                    ).map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setSendAmountStr(preset)}
+                        className="min-h-[38px] rounded-xl bg-[#1A1A1A] border border-[#2B2B2B] hover:border-[#CCFF00] text-xs font-mono font-semibold text-white cursor-pointer"
                       >
-                        {truncateWallet(pendingTransfer.recipient.wallet, 5, 4)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#94A3B8]">Sumber Kontak</span>
-                      <span className="text-[#4ADE80]">
-                        {pendingTransfer.resolutionSource === 'on_chain'
-                          ? 'On-chain ContactRegistry PDA'
-                          : 'Supabase Cache'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between pt-2 border-t border-[#1E2329]">
-                      <span className="text-[#94A3B8]">Jumlah</span>
-                      <span className="text-base font-bold font-mono tabular-nums text-[#CCFF00]">
-                        {pendingTransfer.intent.amount?.toFixed(2)}{' '}
-                        {pendingTransfer.intent.currency ?? 'USDC'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-[11px] text-[#71717A] font-mono tabular-nums">
-                      <span>Raw 6-decimal units</span>
-                      <span>
-                        {usdcToRawUnits(pendingTransfer.intent.amount ?? 0).toString()}
-                      </span>
-                    </div>
+                        {preset}
+                      </button>
+                    ))}
                   </div>
 
-                  {!pendingTransfer.recipient.hasUsdcAta && (
-                    <label className="flex items-start gap-2 p-2.5 bg-[#1F1A11] border border-[#F59E0B]/40 rounded-lg text-[11px] text-[#FDE68A] cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={autoCreateAta}
-                        onChange={(e) => setAutoCreateAta(e.target.checked)}
-                        className="mt-0.5 accent-[#F59E0B]"
-                      />
-                      <span>
-                        {pendingTransfer.recipient.name} has no USDC ATA yet. Auto-create
-                        (idempotent, +0.002039 SOL rent).
-                      </span>
-                    </label>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-2.5 pt-1">
-                    <button
-                      type="button"
-                      onClick={handleCancelTransfer}
-                      disabled={voiceStage === 'sending'}
-                      className="min-h-[44px] px-4 py-2 text-xs font-medium text-[#D4D4D8] bg-[#262626] hover:bg-[#303030] rounded-xl transition-colors cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleConfirmTransfer()}
-                      disabled={voiceStage === 'sending'}
-                      className="min-h-[44px] px-4 py-2 text-xs font-bold text-[#0F0F0F] bg-[#CCFF00] hover:bg-[#B3E600] rounded-xl transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5"
-                    >
-                      {voiceStage === 'sending' ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Signing...</span>
-                        </>
-                      ) : (
-                        <span>Confirm</span>
-                      )}
-                    </button>
+                  {/* Touch Numeric Keypad (44px+ touch targets) */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back'].map(
+                      (key) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => handleKeypadPress(key)}
+                          className="min-h-[48px] rounded-2xl bg-[#1A1A1A] hover:bg-[#242424] active:scale-[0.98] text-lg font-semibold text-white flex items-center justify-center transition-transform cursor-pointer"
+                        >
+                          {key === 'back' ? (
+                            <Delete className="w-5 h-5 text-[#A3A3A3]" aria-hidden="true" />
+                          ) : (
+                            key
+                          )}
+                        </button>
+                      )
+                    )}
                   </div>
-                </motion.div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const num = Number(sendAmountStr);
+                      void prepareTransferConfirmation(
+                        sendRecipient,
+                        num,
+                        sendAsset,
+                        `Send ${num} ${sendAsset} to ${sendRecipient.name}`
+                      );
+                    }}
+                    className="w-full min-h-[52px] rounded-2xl bg-[#CCFF00] hover:bg-[#B8E600] text-[#0F0F0F] font-bold text-sm transition-colors cursor-pointer"
+                  >
+                    Review Spoken Summary
+                  </button>
+                </div>
               )}
 
-              {/* Screen Curtain Blind Demo Overlay */}
-              {screenCurtain && !showOnboarding && (
-                <div
-                  data-testid="screen-curtain-overlay"
-                  onClick={(e) => {
-                    const target = e.target as HTMLElement;
-                    if (target.closest('button')) return;
-                    handleMicToggle();
-                  }}
-                  className="absolute inset-0 z-25 bg-[#050607]/96 p-5 flex flex-col justify-between cursor-pointer"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 text-xs font-mono text-[#93C5FD]">
-                      <EyeOff className="w-4 h-4" aria-hidden="true" />
-                      <span>Mode Layar Gelap</span>
-                    </div>
+              {/* SHEET B: LIVE JUPITER SWAP V2 QUOTE-ONLY */}
+              {activeSheet === 'swap' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
                     <button
                       type="button"
-                      data-testid="disable-curtain"
-                      onClick={() => setScreenCurtain(false)}
-                      className="px-2.5 py-1.5 text-[11px] font-medium text-[#E2E8F0] bg-[#161B22] border border-[#2D3642] hover:border-[#4B5563] rounded-lg cursor-pointer"
+                      onClick={() => setActiveSheet('none')}
+                      className="min-h-[44px] min-w-[44px] -ml-2 inline-flex items-center justify-center text-[#A3A3A3] hover:text-white cursor-pointer"
+                      aria-label="Back to home"
                     >
-                      Matikan Layar Gelap
+                      <ArrowLeft className="w-5 h-5" />
                     </button>
+                    <h2 className="text-base font-bold text-white">Verified Swap Quote</h2>
+                    <span className="text-[11px] font-mono text-[#A855F7]">Quote-Only</span>
                   </div>
 
-                  <div className="my-auto text-center space-y-4">
-                    <div className="w-16 h-16 mx-auto rounded-full bg-[#0F1712] border border-[#22C55E]/40 flex items-center justify-center">
-                      <Mic className="w-7 h-7 text-[#22C55E]" aria-hidden="true" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <p className="text-xs font-mono text-[#64748B]">
-                        Tab aktif: {phoneTab} ·{' '}
-                        {activeSpeaker === 'owner' ? 'User A (Pemilik)' : 'Impostor B'}
-                      </p>
-                      <p className="text-sm font-medium text-[#F8FAFC]">
-                        Sentuh layar di mana saja lalu bicara
-                      </p>
-                      {activeHapticInfo && (
-                        <p className="text-[11px] font-mono text-[#4ADE80]">
-                          Haptic: {activeHapticInfo.label}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="p-3 bg-[#0E1216] border border-[#1E252E] rounded-xl text-left space-y-1">
-                      <div className="text-[10px] font-mono text-[#64748B]">
-                        Narasi TTS Aktif (Terbaca untuk Juri)
-                      </div>
-                      <p className="text-xs text-[#E2E8F0] leading-relaxed">
-                        &ldquo;{spokenLine ?? 'Menunggu perintah suara...'}&rdquo;
-                      </p>
-                    </div>
-                  </div>
-
-                  {pendingTransfer ? (
-                    <div className="grid grid-cols-2 gap-2.5">
+                  <div className="p-4 rounded-2xl bg-[#1A1A1A] border border-[#2A2A2A] space-y-3">
+                    <div className="flex items-center justify-between text-xs text-[#8C8C8C]">
+                      <span>Pair (Verified Allowlist)</span>
                       <button
                         type="button"
-                        onClick={() => void processTranscript('Batal')}
-                        className="min-h-[44px] px-3 py-2 text-xs font-medium text-[#CBD5E1] bg-[#1B2027] rounded-xl cursor-pointer"
+                        onClick={() =>
+                          setSwapInputToken((t) => (t === 'USDC' ? 'SOL' : 'USDC'))
+                        }
+                        className="text-[#CCFF00] font-semibold cursor-pointer"
                       >
-                        Ucapkan &ldquo;Batal&rdquo;
+                        Flip {swapInputToken === 'USDC' ? 'USDC → SOL' : 'SOL → USDC'} ⇄
                       </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="any"
+                        value={swapInputAmount}
+                        onChange={(e) => setSwapInputAmount(e.target.value)}
+                        className="flex-1 h-11 px-3.5 rounded-xl bg-[#0F0F0F] border border-[#303030] text-base font-mono font-bold text-white focus:outline-none focus:border-[#CCFF00]"
+                      />
+                      <span className="px-3.5 h-11 rounded-xl bg-[#262626] text-xs font-bold text-white inline-flex items-center">
+                        {swapInputToken}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2 pt-1">
                       <button
                         type="button"
-                        onClick={() => void processTranscript('Ya')}
-                        className="min-h-[44px] px-3 py-2 text-xs font-semibold text-[#052E16] bg-[#22C55E] rounded-xl cursor-pointer"
+                        disabled={swapLoading}
+                        onClick={() => {
+                          const out = swapInputToken === 'USDC' ? 'SOL' : 'USDC';
+                          void runLiveSwapQuote(
+                            swapInputToken,
+                            out,
+                            Number(swapInputAmount) || 10
+                          );
+                        }}
+                        className="w-full min-h-[46px] rounded-xl bg-[#A855F7] hover:bg-[#9333EA] text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
                       >
-                        Ucapkan &ldquo;Ya&rdquo;
+                        {swapLoading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <ArrowLeftRight className="w-4 h-4" aria-hidden="true" />
+                        )}
+                        <span>Fetch Live Jupiter V2 Quote</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={swapLoading}
+                        onClick={() => void runLiveSwapQuote('USDC', 'XYZ', 10)}
+                        className="w-full min-h-[42px] rounded-xl bg-[#241616] border border-[#7F1D1D] text-[#FCA5A5] text-xs font-semibold cursor-pointer"
+                      >
+                        Test Security: Try Unverified Token XYZ (HTTP 403)
+                      </button>
+                    </div>
+                  </div>
+
+                  {swapBlockedMsg && (
+                    <div className="p-4 rounded-2xl bg-[#2A1414] border border-[#991B1B] space-y-1.5">
+                      <div className="flex items-center gap-2 text-xs font-bold text-[#FCA5A5]">
+                        <ShieldAlert className="w-4 h-4 shrink-0" aria-hidden="true" />
+                        <span>Layer 3 Allowlist Blocked (HTTP 403)</span>
+                      </div>
+                      <p className="text-xs text-[#FECACA] leading-relaxed">{swapBlockedMsg}</p>
+                    </div>
+                  )}
+
+                  {swapQuote && (
+                    <div className="p-4 rounded-2xl bg-[#1A1A1A] border border-[#A855F7]/50 space-y-2.5">
+                      <div className="flex items-center justify-between text-xs text-[#A3A3A3]">
+                        <span>Live Jupiter V2 Result</span>
+                        <span className="font-mono text-[#CCFF00]">
+                          Router: {swapQuote.router}
+                        </span>
+                      </div>
+                      <p className="text-xl font-bold font-mono tabular-nums text-white">
+                        {swapQuote.inAmountUi} {swapQuote.inputToken} →{' '}
+                        <span className="text-[#CCFF00]">
+                          {swapQuote.outAmountUi.toFixed(5)} {swapQuote.outputToken}
+                        </span>
+                      </p>
+                      <p className="text-xs text-[#A3A3A3] leading-relaxed">
+                        {swapQuote.spokenSummary}
+                      </p>
+                      <div className="pt-2 border-t border-[#2A2A2A] flex items-center justify-between text-[11px] font-mono text-[#8C8C8C]">
+                        <span>Max Slippage: {(swapQuote.slippageBps / 100).toFixed(2)}%</span>
+                        <span>Safe Mode · No On-Chain Execution</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* MAIN TAB 1: HOME (Visual Home OR Eyes-Free Tap-Anywhere Canvas) */}
+              {activeSheet === 'none' && phoneTab === 'home' && (
+                <>
+                  {homeSurface === 'eyes-free' ? (
+                    <div className="min-h-[540px] flex flex-col justify-between gap-4">
+                      <button
+                        type="button"
+                        onClick={handleToggleMic}
+                        className={`flex-1 rounded-3xl border-2 p-6 flex flex-col items-center justify-center text-center gap-5 transition-colors cursor-pointer ${
+                          isRecording
+                            ? 'bg-[#1C2612] border-[#CCFF00]'
+                            : 'bg-[#161616] border-[#2E2E2E] hover:border-[#CCFF00]/60'
+                        }`}
+                      >
+                        <div
+                          className={`w-28 h-28 rounded-full flex items-center justify-center transition-transform ${
+                            isRecording
+                              ? 'bg-[#CCFF00] text-[#0F0F0F] scale-105'
+                              : 'bg-[#222222] text-[#CCFF00] border-2 border-[#CCFF00]/60'
+                          }`}
+                        >
+                          <Mic className="w-10 h-10" aria-hidden="true" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <p className="text-lg font-bold text-white">
+                            {isRecording
+                              ? 'Listening... tap to stop'
+                              : pendingPlan
+                                ? `Say "${pendingPlan.challenge.spaced}" to confirm`
+                                : 'Tap Anywhere to Speak'}
+                          </p>
+                          <p className="text-xs text-[#A3A3A3] leading-relaxed max-w-[260px]">
+                            {spokenLine}
+                          </p>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setScreenCurtain(true);
+                          speakText(
+                            'Screen Curtain active. Display hidden for privacy. Tap anywhere to speak.'
+                          );
+                        }}
+                        className="w-full min-h-[48px] rounded-2xl bg-[#1A1A1A] border border-[#333333] hover:border-[#CCFF00] text-xs font-bold text-white flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <EyeOff className="w-4 h-4 text-[#CCFF00]" aria-hidden="true" />
+                        <span>Enable Screen Curtain (Zero-Screen Demo)</span>
                       </button>
                     </div>
                   ) : (
-                    <p className="text-[11px] text-center text-[#64748B]">
-                      Layar digelapkan untuk membuktikan 100% navigasi tanpa visual.
+                    <div className="space-y-4">
+                      {/* Portfolio Card (Matches OPPO mobile 1:1) */}
+                      <div className="p-5 rounded-3xl bg-[#1A1A1A] border border-[#262626] space-y-2.5">
+                        <div className="flex items-center justify-between text-[11px] font-semibold tracking-wide text-[#8C8C8C]">
+                          <span>DEVNET PORTFOLIO</span>
+                          <span className="text-[#CCFF00]">
+                            {executionMode === 'devnet' ? 'Live RPC' : 'Sandbox'}
+                          </span>
+                        </div>
+
+                        {isWalletReady ? (
+                          <>
+                            <p className="text-3xl font-bold font-mono tabular-nums text-white tracking-tight">
+                              $
+                              {estimatedUsdTotal.toLocaleString('en-US', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </p>
+                            <div className="flex items-center justify-between text-xs font-mono tabular-nums text-[#B5B5B5]">
+                              <span>
+                                {activeSolBalance.toFixed(4)} SOL · {activeUsdcBalance.toFixed(2)}{' '}
+                                USDC
+                              </span>
+                              {executionMode === 'devnet' && connectedWallet && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void refreshLiveDevnetBalances(connectedWallet.address)
+                                  }
+                                  className="inline-flex items-center gap-1 text-[#CCFF00] cursor-pointer"
+                                  aria-label="Refresh Devnet balance"
+                                >
+                                  <RefreshCw
+                                    className={`w-3.5 h-3.5 ${
+                                      loadingBalances ? 'animate-spin' : ''
+                                    }`}
+                                    aria-hidden="true"
+                                  />
+                                </button>
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="space-y-3 pt-1">
+                            <div>
+                              <p className="text-base font-bold text-white">
+                                Connect a Solana Devnet Wallet
+                              </p>
+                              <p className="text-xs text-[#A3A3A3] mt-0.5 leading-relaxed">
+                                Sign real SOL or Devnet USDC transfers with Phantom or Solflare.
+                              </p>
+                            </div>
+                            {detectedWallets.length > 0 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {detectedWallets.map((w) => (
+                                  <button
+                                    key={w.kind}
+                                    type="button"
+                                    disabled={connectingWallet}
+                                    onClick={() => void handleConnectBrowserWallet(w)}
+                                    className="min-h-[40px] px-4 rounded-xl bg-[#CCFF00] text-[#0F0F0F] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                                  >
+                                    <Wallet className="w-3.5 h-3.5" aria-hidden="true" />
+                                    <span>Connect {w.label}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-[#FCD34D] leading-relaxed">
+                                No Phantom/Solflare extension detected in this browser. Switch to{' '}
+                                <button
+                                  type="button"
+                                  onClick={() => setExecutionMode('sandbox')}
+                                  className="underline font-bold text-white cursor-pointer"
+                                >
+                                  Instant Sandbox
+                                </button>{' '}
+                                to try all flows right away.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 3-Column Quick Actions (Send, Swap Quote, Eyes-Free) */}
+                      <div className="grid grid-cols-3 gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSendSearch('');
+                            setActiveSheet('send-recipient');
+                          }}
+                          className="p-3 rounded-2xl bg-[#1A1A1A] border border-[#262626] hover:border-[#CCFF00]/60 flex flex-col items-center text-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                          <span className="w-10 h-10 rounded-xl bg-[#CCFF00] text-[#0F0F0F] flex items-center justify-center">
+                            <ArrowUpRight className="w-5 h-5" strokeWidth={2.4} aria-hidden="true" />
+                          </span>
+                          <span className="text-xs font-bold text-white">Send</span>
+                          <span className="text-[10px] text-[#8C8C8C]">SOL · USDC</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSwapBlockedMsg(null);
+                            setActiveSheet('swap');
+                          }}
+                          className="p-3 rounded-2xl bg-[#1A1A1A] border border-[#262626] hover:border-[#A855F7]/70 flex flex-col items-center text-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                          <span className="w-10 h-10 rounded-xl bg-[#A855F7] text-white flex items-center justify-center">
+                            <ArrowLeftRight
+                              className="w-4 h-4"
+                              strokeWidth={2.4}
+                              aria-hidden="true"
+                            />
+                          </span>
+                          <span className="text-xs font-bold text-white">Swap Quote</span>
+                          <span className="text-[10px] text-[#8C8C8C]">USDC ↔ SOL</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHomeSurface('eyes-free');
+                            speakText(
+                              'Eyes-free mode. Tap anywhere on the screen to speak a transaction.'
+                            );
+                          }}
+                          className="p-3 rounded-2xl bg-[#1A1A1A] border border-[#262626] hover:border-[#CCFF00]/60 flex flex-col items-center text-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                          <span className="w-10 h-10 rounded-xl bg-[#121212] border border-[#CCFF00] text-[#CCFF00] flex items-center justify-center">
+                            <AudioLines className="w-5 h-5" aria-hidden="true" />
+                          </span>
+                          <span className="text-xs font-bold text-white">Eyes-Free</span>
+                          <span className="text-[10px] text-[#8C8C8C]">Tap-Anywhere</span>
+                        </button>
+                      </div>
+
+                      {/* Primary Spoken Command Banner */}
+                      <div className="p-3.5 rounded-2xl bg-[#1A1A1A] border border-[#2B2B2B] space-y-3">
+                        <button
+                          type="button"
+                          onClick={handleToggleMic}
+                          className="w-full flex items-center gap-3 text-left cursor-pointer"
+                        >
+                          <span
+                            className={`w-12 h-12 rounded-2xl font-mono text-[10px] font-bold flex items-center justify-center shrink-0 transition-colors ${
+                              isRecording
+                                ? 'bg-[#EF4444] text-white'
+                                : isProcessing || isSigning
+                                  ? 'bg-[#A855F7] text-white'
+                                  : 'bg-[#CCFF00] text-[#0F0F0F]'
+                            }`}
+                          >
+                            {isRecording
+                              ? 'STOP'
+                              : isSigning
+                                ? 'SIGN'
+                                : isProcessing
+                                  ? 'WAIT'
+                                  : 'SPEAK'}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold text-white truncate">
+                              {isRecording
+                                ? 'Listening... tap to stop'
+                                : isSigning
+                                  ? 'Authorizing in wallet...'
+                                  : pendingPlan
+                                    ? `Say "${pendingPlan.challenge.spaced}" to confirm`
+                                    : 'Tap to Speak a Transaction'}
+                            </p>
+                            <p className="text-[11px] text-[#8C8C8C] truncate">
+                              {lastTranscript
+                                ? `Heard: "${lastTranscript}"`
+                                : 'Try: "Send 5 USDC to Ahmad" · "Check balance"'}
+                            </p>
+                          </div>
+                        </button>
+
+                        {/* Clean fallback type-to-speak input */}
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            if (!typedCommand.trim()) return;
+                            const cmd = typedCommand;
+                            setTypedCommand('');
+                            void processCommand(cmd);
+                          }}
+                          className="flex items-center gap-2"
+                        >
+                          <input
+                            type="text"
+                            value={typedCommand}
+                            onChange={(e) => setTypedCommand(e.target.value)}
+                            placeholder="Or type a voice command..."
+                            className="flex-1 h-9 px-3 rounded-xl bg-[#0F0F0F] border border-[#2A2A2A] text-xs text-white placeholder:text-[#666666] focus:outline-none focus:border-[#CCFF00]"
+                          />
+                          <button
+                            type="submit"
+                            aria-label="Run command"
+                            className="h-9 w-9 rounded-xl bg-[#262626] hover:bg-[#CCFF00] text-white hover:text-[#0F0F0F] flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                          >
+                            <Send className="w-3.5 h-3.5" aria-hidden="true" />
+                          </button>
+                        </form>
+                      </div>
+
+                      {/* Error / Safety Block Banner */}
+                      {errorBanner && (
+                        <div className="p-3.5 rounded-2xl bg-[#2A1414] border border-[#991B1B] flex items-start gap-2.5">
+                          <ShieldAlert
+                            className="w-4 h-4 text-[#FCA5A5] shrink-0 mt-0.5"
+                            aria-hidden="true"
+                          />
+                          <p className="text-xs text-[#FECACA] leading-relaxed flex-1">
+                            {errorBanner}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setErrorBanner(null)}
+                            aria-label="Dismiss alert"
+                            className="text-[#FCA5A5] hover:text-white cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Active Pre-Sign Confirmation Card (Layers 2, 4, 5) */}
+                      {pendingPlan && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.16 }}
+                          className="p-4 rounded-2xl bg-[#172112] border border-[#CCFF00]/60 space-y-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#CCFF00]">
+                              <ShieldCheck className="w-4 h-4" aria-hidden="true" />
+                              Pre-Sign Verification
+                            </span>
+                            <span className="text-[11px] font-mono text-[#D9F99D]">
+                              Code: {pendingPlan.challenge.spaced}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-[#A3A3A3]">Recipient</span>
+                              <span className="font-semibold text-white">
+                                {pendingPlan.recipient.name} (
+                                <span className="font-mono text-[#A3A3A3]">
+                                  ...{pendingPlan.recipient.wallet.slice(-4)}
+                                </span>
+                                )
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[#A3A3A3]">Amount</span>
+                              <span className="font-mono font-bold text-[#CCFF00] tabular-nums">
+                                {pendingPlan.amount} {pendingPlan.asset}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[#A3A3A3]">Network Fee</span>
+                              <span className="font-mono text-white tabular-nums">
+                                ~{pendingPlan.estimatedNetworkFeeSol.toFixed(6)} SOL
+                              </span>
+                            </div>
+                            {pendingPlan.createsNewAta && (
+                              <div className="flex justify-between text-[#FCD34D]">
+                                <span>One-Time ATA Rent</span>
+                                <span className="font-mono tabular-nums">
+                                  +{pendingPlan.estimatedAtaRentSol.toFixed(5)} SOL
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Layer 2 Challenge Input (optional quick check or direct button) */}
+                          <input
+                            type="text"
+                            value={challengeInput}
+                            onChange={(e) => setChallengeInput(e.target.value)}
+                            placeholder={`Type ${pendingPlan.challenge.digits} or tap Confirm & Sign`}
+                            className="w-full h-9 px-3 rounded-xl bg-[#0F0F0F] border border-[#334424] text-xs font-mono text-white placeholder:text-[#737373] focus:outline-none focus:border-[#CCFF00]"
+                          />
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              disabled={isSigning}
+                              onClick={() => {
+                                setPendingPlan(null);
+                                setChallengeInput('');
+                                speakText('Transfer canceled.');
+                              }}
+                              className="min-h-[44px] rounded-xl bg-[#1F1F1F] text-xs font-semibold text-[#D4D4D4] cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isSigning}
+                              onClick={() => void executePendingPlan()}
+                              className="min-h-[44px] rounded-xl bg-[#CCFF00] hover:bg-[#B8E600] text-xs font-bold text-[#0F0F0F] inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              {isSigning ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                              ) : (
+                                <Check className="w-3.5 h-3.5" aria-hidden="true" />
+                              )}
+                              <span>
+                                {executionMode === 'devnet' ? 'Sign on Devnet' : 'Confirm Sandbox'}
+                              </span>
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {/* Latest Confirmed Receipt Banner */}
+                      {latestReceipt && (
+                        <div className="p-3.5 rounded-2xl bg-[#162212] border border-[#3E6B24] space-y-1">
+                          <div className="flex items-center justify-between text-xs font-bold text-[#CCFF00]">
+                            <span>
+                              ✓ {latestReceipt.isLiveDevnet ? 'Confirmed on Devnet' : 'Sandbox Preview'}
+                            </span>
+                            <span className="font-mono tabular-nums">
+                              {latestReceipt.amount} {latestReceipt.asset}
+                            </span>
+                          </div>
+                          <p className="text-xs text-[#D4E8C8]">
+                            Sent to {latestReceipt.recipientName}
+                          </p>
+                          {latestReceipt.isLiveDevnet && latestReceipt.explorerUrl ? (
+                            <a
+                              href={latestReceipt.explorerUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs font-mono text-[#CCFF00] underline pt-0.5"
+                            >
+                              <span>
+                                {truncateWallet(latestReceipt.signature)} · Open Solana Explorer
+                              </span>
+                              <ExternalLink className="w-3 h-3" aria-hidden="true" />
+                            </a>
+                          ) : (
+                            <p className="text-[11px] font-mono text-[#8C9E82]">
+                              Simulated receipt · Connect Phantom/Solflare for real Explorer links
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Recent Activity */}
+                      <div className="space-y-2.5 pt-1">
+                        <div className="flex items-center justify-between">
+                          <h2 className="text-xs font-bold uppercase tracking-wider text-[#8C8C8C]">
+                            Recent Activity
+                          </h2>
+                          <button
+                            type="button"
+                            onClick={() => setPhoneTab('history')}
+                            className="text-xs font-semibold text-[#CCFF00] cursor-pointer"
+                          >
+                            See All
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {transactions.slice(0, 3).map((tx) => (
+                            <button
+                              key={tx.id}
+                              type="button"
+                              onClick={() =>
+                                speakText(
+                                  `${tx.isLiveDevnet ? 'Confirmed Solana Devnet' : 'Sandbox'} transfer of ${tx.amountUsdc} ${tx.currency} to ${tx.recipientName}.`
+                                )
+                              }
+                              className="w-full min-h-[58px] px-3.5 py-2.5 rounded-2xl bg-[#1A1A1A] border border-[#242424] hover:border-[#3A3A3A] flex items-center justify-between gap-3 text-left cursor-pointer"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <span className="w-9 h-9 rounded-full bg-[#242424] text-white text-xs font-bold flex items-center justify-center shrink-0">
+                                  {getInitials(tx.recipientName)}
+                                </span>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold text-white truncate">
+                                    {tx.recipientName}
+                                  </p>
+                                  <p className="text-[11px] text-[#8C8C8C] truncate">
+                                    {formatShortDate(tx.createdAt)} ·{' '}
+                                    {tx.isLiveDevnet ? 'Live Devnet' : 'Sandbox'}
+                                  </p>
+                                </div>
+                              </div>
+                              <span className="text-xs font-mono font-bold tabular-nums text-white shrink-0">
+                                -{tx.amountUsdc} {tx.currency}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* MAIN TAB 2: CONTACTS (Matches OPPO mobile Contacts tab 1:1) */}
+              {activeSheet === 'none' && phoneTab === 'contacts' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base font-bold text-white">Verified Contacts</h2>
+                      <p className="text-[11px] text-[#8C8C8C]">
+                        {contacts.length} saved recipients · Anti-blind-signing allowlist
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddContact((v) => !v)}
+                      className="min-h-[38px] px-3 rounded-xl bg-[#CCFF00] text-[#0F0F0F] text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                      <span>{showAddContact ? 'Close' : 'Add'}</span>
+                    </button>
+                  </div>
+
+                  {executionMode === 'devnet' && connectedWallet && (
+                    <button
+                      type="button"
+                      onClick={handleAddConnectedWalletAsContact}
+                      className="w-full min-h-[44px] px-3.5 rounded-2xl bg-[#182412] border border-[#CCFF00]/50 text-xs font-semibold text-[#CCFF00] flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <UserPlus className="w-4 h-4" aria-hidden="true" />
+                      <span>Add My Connected Wallet (Safe Devnet Self-Test)</span>
+                    </button>
+                  )}
+
+                  {showAddContact && (
+                    <div className="p-3.5 rounded-2xl bg-[#1A1A1A] border border-[#303030] space-y-2.5">
+                      <input
+                        type="text"
+                        value={newContactName}
+                        onChange={(e) => setNewContactName(e.target.value)}
+                        placeholder="Recipient name (e.g. Sarah)"
+                        className="w-full h-10 px-3 rounded-xl bg-[#0F0F0F] border border-[#2C2C2C] text-xs text-white placeholder:text-[#737373] focus:outline-none focus:border-[#CCFF00]"
+                      />
+                      <input
+                        type="text"
+                        value={newContactWallet}
+                        onChange={(e) => setNewContactWallet(e.target.value)}
+                        placeholder="Solana Devnet wallet address (Base58)"
+                        className="w-full h-10 px-3 rounded-xl bg-[#0F0F0F] border border-[#2C2C2C] text-xs font-mono text-white placeholder:text-[#737373] focus:outline-none focus:border-[#CCFF00]"
+                      />
+                      {contactFormError && (
+                        <p className="text-[11px] text-[#FCA5A5]">{contactFormError}</p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleCreateContact}
+                        className="w-full min-h-[42px] rounded-xl bg-[#CCFF00] text-[#0F0F0F] text-xs font-bold cursor-pointer"
+                      >
+                        Save Verified Contact
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="relative">
+                    <Search
+                      className="w-4 h-4 text-[#737373] absolute left-3.5 top-1/2 -translate-y-1/2"
+                      aria-hidden="true"
+                    />
+                    <input
+                      type="text"
+                      value={contactSearch}
+                      onChange={(e) => setContactSearch(e.target.value)}
+                      placeholder="Search contacts..."
+                      className="w-full h-10 pl-10 pr-3 rounded-2xl bg-[#1A1A1A] border border-[#262626] text-xs text-white placeholder:text-[#737373] focus:outline-none focus:border-[#CCFF00]"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    {filteredContacts.map((contact) => (
+                      <div
+                        key={contact.id}
+                        className="p-3 rounded-2xl bg-[#1A1A1A] border border-[#262626] flex items-center justify-between gap-2"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSendRecipient(contact);
+                            setSendAsset(executionMode === 'devnet' ? 'SOL' : 'USDC');
+                            setSendAmountStr(executionMode === 'devnet' ? '0.001' : '5');
+                            setActiveSheet('send-amount');
+                          }}
+                          className="flex items-center gap-3 min-w-0 flex-1 text-left cursor-pointer"
+                        >
+                          <span className="w-10 h-10 rounded-full bg-[#242424] text-[#CCFF00] text-xs font-bold flex items-center justify-center shrink-0">
+                            {getInitials(contact.name)}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-white truncate">
+                              {contact.name}
+                            </p>
+                            <p className="text-[11px] font-mono text-[#8C8C8C] truncate">
+                              {truncateWallet(contact.wallet)}
+                            </p>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteContact(contact.id)}
+                          aria-label={`Remove ${contact.name}`}
+                          className="min-h-[40px] min-w-[40px] rounded-xl text-[#737373] hover:text-[#FCA5A5] flex items-center justify-center cursor-pointer shrink-0"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* MAIN TAB 3: HISTORY (Matches OPPO mobile History tab 1:1) */}
+              {activeSheet === 'none' && phoneTab === 'history' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-base font-bold text-white">Transaction History</h2>
+                    <p className="text-[11px] text-[#8C8C8C]">
+                      Tap any receipt to hear it read aloud
                     </p>
+                  </div>
+
+                  {transactions.length === 0 ? (
+                    <div className="p-6 rounded-2xl bg-[#1A1A1A] border border-[#262626] text-center space-y-1.5">
+                      <p className="text-sm font-semibold text-white">No transfers yet</p>
+                      <p className="text-xs text-[#8C8C8C]">
+                        Complete a transfer on Home to see verifiable receipts here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {transactions.map((tx) => (
+                        <div
+                          key={tx.id}
+                          className="p-3.5 rounded-2xl bg-[#1A1A1A] border border-[#262626] space-y-2"
+                        >
+                          <button
+                            type="button"
+                            onClick={() =>
+                              speakText(
+                                `${tx.isLiveDevnet ? 'Confirmed Solana Devnet' : 'Sandbox preview'} transfer of ${tx.amountUsdc} ${tx.currency} to ${tx.recipientName}.`
+                              )
+                            }
+                            className="w-full flex items-center justify-between gap-2 text-left cursor-pointer"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-white truncate">
+                                {tx.recipientName}
+                              </p>
+                              <p className="text-[11px] text-[#8C8C8C]">
+                                {formatShortDate(tx.createdAt)} ·{' '}
+                                {tx.isLiveDevnet ? 'Live Solana Devnet' : 'Sandbox Preview'}
+                              </p>
+                            </div>
+                            <span className="text-sm font-mono font-bold tabular-nums text-[#CCFF00] shrink-0">
+                              -{tx.amountUsdc} {tx.currency}
+                            </span>
+                          </button>
+
+                          {tx.isLiveDevnet && tx.explorerUrl ? (
+                            <a
+                              href={tx.explorerUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-mono text-[#CCFF00] underline"
+                            >
+                              <span>{truncateWallet(tx.txSignature)} · View on Explorer</span>
+                              <ExternalLink className="w-3 h-3" aria-hidden="true" />
+                            </a>
+                          ) : (
+                            <p className="text-[11px] font-mono text-[#737373]">
+                              Ref: {truncateWallet(tx.txSignature)}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}
             </div>
 
-            {/* Bottom Tab Navigation (Home / Contacts / History — Spoken on Tap) */}
+            {/* Mobile Fixed Bottom Tab Bar (Home · Contacts · History — matches OPPO app 1:1) */}
             <nav
-              aria-label="Bicara Mobile Navigation"
-              className="grid grid-cols-3 border-t border-white/10 bg-[#141414]"
+              aria-label="Mobile app navigation"
+              className="h-16 px-4 bg-[#121212] border-t border-[#222222] grid grid-cols-3 items-center shrink-0"
             >
               {(
                 [
-                  { id: 'home', label: 'Home', Icon: Mic },
+                  { id: 'home', label: 'Home', Icon: Home },
                   { id: 'contacts', label: 'Contacts', Icon: Users },
                   { id: 'history', label: 'History', Icon: Clock },
                 ] as const
               ).map(({ id, label, Icon }) => {
-                const active = phoneTab === id;
+                const active = phoneTab === id && activeSheet === 'none';
                 return (
                   <button
                     key={id}
                     type="button"
-                    onClick={() => handleSelectPhoneTab(id)}
-                    aria-current={active ? 'page' : undefined}
-                    className={`min-h-[54px] flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors cursor-pointer ${
-                      active ? 'text-[#CCFF00]' : 'text-[#71717A] hover:text-[#D4D4D8]'
+                    onClick={() => {
+                      setActiveSheet('none');
+                      setPhoneTab(id);
+                      if (id === 'home') setHomeSurface('visual');
+                      speakText(`${label} tab.`);
+                    }}
+                    className={`min-h-[44px] flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${
+                      active ? 'text-[#CCFF00]' : 'text-[#737373] hover:text-white'
                     }`}
                   >
-                    <Icon className="w-4 h-4" aria-hidden="true" />
-                    <span>{label}</span>
+                    <Icon className="w-5 h-5" strokeWidth={active ? 2.4 : 2} aria-hidden="true" />
+                    <span className="text-[10px] font-semibold">{label}</span>
                   </button>
                 );
               })}
             </nav>
-
-            {/* Full-Screen Voice-Guided Onboarding Overlay */}
-            {showOnboarding && (
-              <VoiceOnboardingOverlay
-                walletConnected={walletConnected}
-                onConnectWallet={onToggleWallet}
-                onSpeak={(text, haptic) => speakOut(text, haptic)}
-                onComplete={(profile) => {
-                  setVoiceprintProfile(profile);
-                  setActiveSpeaker('owner');
-                  setShowOnboarding(false);
-                  setPhoneTab('home');
-                  setStatusMessage(
-                    'Voiceprint for User A (Azhar) is active and bound to the Solana wallet.'
-                  );
-                  speakOut(
-                    'Onboarding complete. Your voiceprint is active. Tap anywhere on screen to speak.',
-                    'success'
-                  );
-                }}
-                onClose={() => setShowOnboarding(false)}
-              />
-            )}
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Voice Utterance Simulator, Phone B Mirror & Live Pipeline */}
-        <div className="lg:col-span-7 space-y-5">
-          {/* Quick Voice Scenarios + Custom Input */}
-          <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 space-y-4 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h4 className="text-sm font-bold text-[#1E3124]">
-                  Eyes-Free Voice Command Simulator
-                </h4>
-                <p className="text-xs text-[#526658]">
-                  Test spoken navigation, balance queries, voice confirmation, and Voiceprint blocking
-                </p>
+        {/* RIGHT RAIL: Clean Judge Scenario Controls + Live Spoken Caption */}
+        <div className="lg:col-span-6 space-y-5">
+          {/* 1. Live Spoken Caption Card (So muted judges follow every spoken word) */}
+          <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 space-y-2.5 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#356341]">
+                <AudioLines className="w-4 h-4" aria-hidden="true" />
+                <span>Live Spoken Output</span>
               </div>
-              <span className="text-xs font-mono text-[#788A7D]">{metrics.engineLabel}</span>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {DEMO_UTTERANCES.map((item) => {
-                const highlightConfirm =
-                  (item.text === 'Yes' || item.text === 'Ya') && Boolean(pendingTransfer);
-                return (
-                  <button
-                    key={item.text}
-                    type="button"
-                    onClick={() => void processTranscript(item.text)}
-                    className={`px-3 py-2 text-xs text-left rounded-xl border transition-colors cursor-pointer ${
-                      highlightConfirm
-                        ? 'bg-[#EEF5EA] border-[#356341] text-[#2E6B40]'
-                        : 'bg-[#FAF9F5] hover:bg-[#EEF3E8] border-[#E2E6DC] hover:border-[#B4D0AF]'
-                    }`}
-                  >
-                    <span className="block text-[10px] text-[#788A7D]">{item.label}</span>
-                    <span className={highlightConfirm ? 'text-[#2E6B40] font-bold' : 'text-[#1E3124] font-medium'}>
-                      &ldquo;{item.text}&rdquo;
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <form onSubmit={handleCustomSubmit} className="flex items-center gap-2">
-              <label htmlFor="custom-voice-input" className="sr-only">
-                Type simulated voice command
-              </label>
-              <input
-                id="custom-voice-input"
-                type="text"
-                value={customCommand}
-                onChange={(e) => setCustomCommand(e.target.value)}
-                placeholder='Try: "Check balance", "Open contacts", or "Send 5 USDC to Ahmad"'
-                className="flex-1 px-3.5 py-2.5 text-xs bg-[#FAF9F5] border border-[#D8E0D2] rounded-xl text-[#1E3124] placeholder:text-[#788A7D] focus:outline-none focus:border-[#356341]"
-              />
               <button
-                type="submit"
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-[#356341] hover:bg-[#2A5135] rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                type="button"
+                onClick={() => speakText(spokenLine)}
+                className="text-xs font-semibold text-[#526658] hover:text-[#1E3124] cursor-pointer"
               >
-                <Send className="w-3.5 h-3.5" />
-                <span>Simulate</span>
+                Replay Audio
               </button>
-            </form>
+            </div>
+            <p className="text-sm sm:text-[15px] text-[#1E3124] leading-relaxed font-medium">
+              &ldquo;{spokenLine}&rdquo;
+            </p>
           </div>
 
-          {/* Two-Phone Demo Mirror (Phone B — Recipient Wallet) */}
+          {/* 2. One-Tap Judge Scenarios */}
           <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 space-y-3 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Smartphone className="w-4 h-4 text-[#356341]" aria-hidden="true" />
-                <h4 className="text-sm font-bold text-[#1E3124]">
-                  Phone B: Recipient Wallet Mirror (Two-Phone Demo View)
-                </h4>
-              </div>
-              <label className="inline-flex items-center gap-2 text-xs text-[#526658]">
-                <span>Monitor:</span>
-                <select
-                  aria-label="Select recipient wallet for Phone B"
-                  value={mirrorContact?.id ?? ''}
-                  onChange={(e) => setMirrorContactId(e.target.value)}
-                  className="bg-[#FAF9F5] border border-[#D8E0D2] rounded-lg px-2.5 py-1 text-xs text-[#1E3124] focus:outline-none focus:border-[#356341]"
-                >
-                  {contacts.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            <div className="space-y-0.5">
+              <h2 className="text-base font-bold text-[#1E3124]">Quick Demo Scenarios</h2>
+              <p className="text-xs text-[#526658]">
+                Tap any scenario to test the full spoken verification flow inside the phone.
+              </p>
             </div>
 
-            {mirrorContact && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-                <div className="p-3 bg-[#FAF9F5] border border-[#E6EAE0] rounded-xl">
-                  <div className="text-[11px] text-[#788A7D]">Recipient</div>
-                  <div className="mt-0.5 text-sm font-bold text-[#1E3124]">
-                    {mirrorContact.name}
-                  </div>
-                  <div className="font-mono text-[11px] text-[#526658]">
-                    {truncateWallet(mirrorContact.wallet, 5, 4)}
-                  </div>
-                </div>
-                <div className="p-3 bg-[#FAF9F5] border border-[#E6EAE0] rounded-xl">
-                  <div className="text-[11px] text-[#788A7D]">Devnet USDC Balance</div>
-                  <div
-                    data-testid="recipient-balance"
-                    className="mt-0.5 text-lg font-bold font-mono tabular-nums text-[#1E3124]"
-                  >
-                    {mirrorContact.balanceUsdc.toFixed(2)} USDC
-                  </div>
-                  {lastDeltaContactId === mirrorContact.id && lastDeltaAmount > 0 && (
-                    <div className="text-[11px] font-mono tabular-nums text-[#2E6B40] font-semibold">
-                      +{lastDeltaAmount.toFixed(2)} USDC received
-                    </div>
-                  )}
-                </div>
-                <div className="p-3 bg-[#FAF9F5] border border-[#E6EAE0] rounded-xl">
-                  <div className="text-[11px] text-[#788A7D]">On-Chain Status</div>
-                  <div className="mt-0.5 text-xs font-semibold text-[#1E3124]">
-                    {mirrorContact.onChain ? 'Registered in ContactRegistry' : 'Supabase Only'}
-                  </div>
-                  <div className="font-mono text-[11px] text-[#788A7D]">
-                    {mirrorContact.hasUsdcAta ? 'USDC ATA Ready' : 'ATA Init Needed'}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Live Architecture Pipeline Inspector */}
-          <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 space-y-4 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#E9EDE3]">
-              <div>
-                <h4 className="text-sm font-bold text-[#1E3124]">
-                  Live Pipeline &amp; Payload Inspector
-                </h4>
-                <p className="text-xs text-[#526658]">
-                  Stage 00 Voiceprint Gate → STT → Unified NLU → Contact PDA → MWA Wallet
-                </p>
-              </div>
-              <div className="text-right font-mono text-xs tabular-nums">
-                <span className="text-[#788A7D]">Est. E2E: </span>
-                <span className="text-[#2E6B40] font-bold">
-                  {totalLatencyMs > 0 ? `${(totalLatencyMs / 1000).toFixed(2)}s` : '—'}
-                </span>
-                <span className="text-[#788A7D]"> / 7.0s budget</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {pipelineSteps.map((step) => (
-                <div
-                  key={step.num}
-                  data-testid={`pipeline-step-${step.num}`}
-                  className={`p-3 rounded-xl border transition-colors ${
-                    step.blocked
-                      ? 'bg-[#FEF2F2] border-[#FECACA]'
-                      : step.active
-                        ? 'bg-[#EEF5EA] border-[#356341]'
-                        : step.done
-                          ? 'bg-[#F3F8F1] border-[#C6DBC2]'
-                          : 'bg-[#FAF9F5] border-[#E6EAE0]'
-                  }`}
+            <div className="divide-y divide-[#EDF0E8]">
+              {quickScenarios.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={item.action}
+                  className="w-full py-3.5 first:pt-2 last:pb-1 flex items-center justify-between gap-4 text-left group cursor-pointer"
                 >
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-[#1E3124]">
-                      <span className="font-mono text-[#788A7D] mr-1.5">{step.num}.</span>
-                      {step.title}
-                    </span>
-                    {step.blocked ? (
-                      <ShieldAlert className="w-3.5 h-3.5 text-[#DC2626] shrink-0" aria-hidden="true" />
-                    ) : step.done ? (
-                      <ShieldCheck className="w-3.5 h-3.5 text-[#2E6B40] shrink-0" aria-hidden="true" />
-                    ) : null}
+                  <div className="space-y-0.5 min-w-0">
+                    <p className="text-sm font-bold text-[#1E3124] group-hover:text-[#356341] transition-colors">
+                      {item.title}
+                    </p>
+                    <p className="text-xs text-[#526658] leading-relaxed">{item.description}</p>
+                    <p className="text-[11px] font-mono text-[#788A7D] pt-0.5">
+                      &ldquo;{item.command}&rdquo;
+                    </p>
                   </div>
-                  <p
-                    className={`mt-1 text-[11px] font-mono truncate ${
-                      step.blocked ? 'text-[#991B1B]' : 'text-[#526658]'
-                    }`}
-                  >
-                    {step.detail}
-                  </p>
-                </div>
+                  <span className="w-8 h-8 rounded-full bg-[#F2F6EE] group-hover:bg-[#356341] text-[#356341] group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                    <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
+                  </span>
+                </button>
               ))}
             </div>
+          </div>
 
-            {/* Structured Payloads Side-by-Side */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-              <div className="space-y-1.5">
-                <div className="text-[11px] font-semibold text-[#526658]">
-                  Parsed Unified Intent JSON
-                </div>
-                <pre className="bg-[#1C2820] border border-[#2B3A30] rounded-xl p-3 text-[11px] font-mono text-[#CFECC8] overflow-x-auto min-h-[132px]">
-                  <code>
-                    {parsedIntent
-                      ? JSON.stringify(parsedIntent, null, 2)
-                      : '{\n  "action": "idle",\n  "hint": "Run a voice nav or payment utterance"\n}'}
-                  </code>
-                </pre>
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="text-[11px] font-semibold text-[#526658]">
-                  Voiceprint Gate, Haptics &amp; Solana Instruction
-                </div>
-                <pre className="bg-[#1C2820] border border-[#2B3A30] rounded-xl p-3 text-[11px] font-mono text-[#EEF3EC] overflow-x-auto min-h-[132px]">
-                  <code>
-                    {lastInstruction
-                      ? JSON.stringify(
-                          {
-                            voiceprint: lastVoiceprintResult
-                              ? `${lastVoiceprintResult.speakerLabel} (${lastVoiceprintResult.scorePct !== null ? `${lastVoiceprintResult.scorePct}%` : 'uncalibrated'})`
-                              : voiceprintProfile.ownerLabel,
-                            haptic: activeHapticInfo?.pattern ?? null,
-                            instruction: lastInstruction.program,
-                            mint: truncateWallet(USDC_MINT_DEVNET, 6, 4),
-                            amountRaw: `${lastInstruction.rawAmount}n`,
-                            feeSol: lastInstruction.estimatedFeeSol,
-                          },
-                          null,
-                          2
-                        )
-                      : JSON.stringify(
-                          {
-                            voiceprint: lastVoiceprintResult
-                              ? {
-                                  verified: lastVoiceprintResult.verified,
-                                  scorePct: lastVoiceprintResult.scorePct,
-                                  thresholdPct: Math.round(lastVoiceprintResult.threshold * 100),
-                                  speaker: lastVoiceprintResult.speakerLabel,
-                                }
-                              : {
-                                  enrolled: voiceprintProfile.enrolled,
-                                  owner: voiceprintProfile.ownerLabel,
-                                  activeSpeaker,
-                                },
-                            haptic: activeHapticInfo?.pattern ?? null,
-                            keyterms_count: scribeKeyterms.length,
-                            tts_model: 'eleven_flash_v2_5 (~100ms)',
-                          },
-                          null,
-                          2
-                        )}
-                  </code>
-                </pre>
-              </div>
+          {/* 3. Live Solana Devnet Judge Helper */}
+          <div className="bg-[#F4F7F0] border border-[#DCE4D4] rounded-2xl p-5 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-bold text-[#1E3124]">
+                {executionMode === 'devnet'
+                  ? 'Live Solana Devnet Testing'
+                  : 'Want to Broadcast a Real Devnet Transaction?'}
+              </h3>
+              <span className="text-xs font-mono text-[#356341] font-semibold">
+                solana:devnet
+              </span>
             </div>
+
+            {executionMode === 'devnet' ? (
+              <div className="space-y-3 text-xs text-[#526658] leading-relaxed">
+                <p>
+                  Connect <strong>Phantom</strong> or <strong>Solflare</strong> switched to{' '}
+                  <strong>Devnet</strong> in your wallet settings. Need free test SOL? Request a
+                  Devnet airdrop, save your own wallet as a verified contact, and send{' '}
+                  <span className="font-mono text-[#1E3124]">0.001 SOL</span> to verify the real
+                  Solana Explorer receipt.
+                </p>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <a
+                    href={SOLANA_DEVNET_FAUCET_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white border border-[#D4DDD0] hover:border-[#356341] text-xs font-semibold text-[#1E3124] transition-colors"
+                  >
+                    <span>Solana Devnet Faucet</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-[#356341]" aria-hidden="true" />
+                  </a>
+                  {connectedWallet && (
+                    <button
+                      type="button"
+                      onClick={handleAddConnectedWalletAsContact}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#356341] hover:bg-[#2A5135] text-xs font-bold text-white transition-colors cursor-pointer"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" aria-hidden="true" />
+                      <span>Save My Wallet for Self-Test</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <p className="text-xs text-[#526658] leading-relaxed">
+                  You are currently in <strong>Instant Sandbox</strong> (zero wallet needed). Switch
+                  to Live Solana Devnet anytime to sign and verify real transactions on-chain.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExecutionMode('devnet');
+                    setPendingPlan(null);
+                    setDetectedWallets(detectBrowserSolanaWallets());
+                  }}
+                  className="px-4 py-2 rounded-full bg-[#356341] hover:bg-[#2A5135] text-xs font-bold text-white whitespace-nowrap shrink-0 cursor-pointer"
+                >
+                  Switch to Live Devnet
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

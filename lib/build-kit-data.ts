@@ -10,9 +10,9 @@ export interface UsbSetupStep {
 export interface BuildScopeItem {
   id: string;
   title: string;
-  bucket: 'hackathon' | 'roadmap';
+  bucket: 'before' | 'hackathon' | 'roadmap';
   stageLabel: string;
-  status: 'Scaffolded (Step 1)' | 'Next Build Step' | 'Post-Hackathon';
+  status: 'Gate A PASS' | 'Gate B Next' | 'Hackathon Window' | 'Post-Hackathon';
   detail: string;
   verification: string;
 }
@@ -21,129 +21,97 @@ export const USB_SETUP_STEPS: UsbSetupStep[] = [
   {
     id: 'usb-prereq',
     stepNum: '01',
-    title: 'Verifikasi JDK 17 & Android SDK (Tanpa Emulator)',
+    title: 'Verify JDK 17, Node 20+, and Android Platform-Tools (No Emulator Needed)',
     detail:
-      'Laptop hanya membutuhkan Node 20+, JDK 17, dan Android SDK Platform-Tools / Build-Tools. Tidak perlu menjalankan emulator berat.',
+      'Physical Android hardware testing avoids heavy emulators and exposes real MWA intents, microphone capture, and physical vibration motors.',
     commandUsb: 'java -version && adb version && node -v',
   },
   {
     id: 'usb-connect',
     stepNum: '02',
-    title: 'Hubungkan HP Android via Kabel USB + Aktifkan USB Debugging',
+    title: 'Connect Physical Android Phone via USB Debugging',
     detail:
-      'Buka Settings → Developer Options → USB Debugging di HP fisik, colok kabel data, lalu klik Allow pada prompt RSA fingerprint di layar HP.',
+      'Enable Settings -> Developer Options -> USB Debugging on your Android phone (verified on OPPO CPH2631 Android 16) and accept the RSA prompt.',
     commandUsb: 'adb devices',
   },
   {
     id: 'usb-reverse',
     stepNum: '03',
-    title: 'Bridge Port Voice Proxy & Metro Lewat USB',
+    title: 'Bridge Next.js Voice & Quote Proxy + Metro Over USB',
     detail:
-      'Dengan adb reverse, HP fisik dapat memanggil http://localhost:3000 (/api/stt, /api/intent, /api/tts) secara instan tanpa masalah firewall Wi-Fi.',
+      'adb reverse maps http://localhost:3000 directly to your laptop Next.js proxy (/api/stt, /api/intent, /api/tts, /api/swap/quote, /api/prices) with zero LAN firewall friction.',
     commandUsb: 'adb reverse tcp:3000 tcp:3000 && adb reverse tcp:8081 tcp:8081',
     commandWireless:
-      '# Demo tanpa kabel: set EXPO_PUBLIC_API_BASE_URL di mobile/.env ke URL publik / IP LAN laptop\nEXPO_PUBLIC_API_BASE_URL=https://your-bicara-proxy.example.com',
+      '# Wireless presentation fallback: point mobile/.env to your deployed HTTPS proxy URL\nEXPO_PUBLIC_API_BASE_URL=https://your-bicara-proxy.example.com',
+  },
+  {
+    id: 'usb-supabase',
+    stepNum: '04',
+    title: 'Gate B: Apply Supabase Schema & Configure mobile/.env',
+    detail:
+      'Paste supabase/schema.sql into Supabase SQL Editor and add EXPO_PUBLIC_SUPABASE_URL + EXPO_PUBLIC_SUPABASE_ANON_KEY to mobile/.env (falls back to AsyncStorage cleanly if omitted).',
+    commandUsb: 'cd mobile && cp .env.example .env',
   },
   {
     id: 'usb-wallet',
-    stepNum: '04',
-    title: 'Siapkan Phantom / Solflare (Devnet Mode) di HP',
-    detail:
-      'Install Phantom atau Solflare dari Play Store di HP fisik → Settings → Developer Settings → aktifkan Testnet Mode (Solana Devnet) dan isi Devnet SOL + USDC.',
-    commandUsb:
-      '# Opsional via Solana CLI di laptop untuk isi gas Devnet ke wallet HP kamu:\nsolana airdrop 2 <ALAMAT_WALLET_HP> --url devnet',
-  },
-  {
-    id: 'usb-build',
     stepNum: '05',
-    title: 'Install & Compile Expo Custom Dev Client ke HP Fisik',
+    title: 'Configure Solflare or Phantom in Solana Devnet Mode',
     detail:
-      'MWA 2.0 dan react-native-quick-crypto membutuhkan Custom Dev Client (bukan Expo Go). Build awal ~2–4 menit, setelah itu reload JS instan.',
-    commandUsb: 'cd mobile && cp .env.example .env && npm install && npx expo run:android',
+      'Enable Testnet/Devnet Mode inside Solflare or Phantom on the phone and ensure you have Devnet SOL (and optional Circle Devnet USDC) for live Gate B transfers.',
+    commandUsb: 'solana airdrop 1 <YOUR_PHONE_DEVNET_ADDRESS> --url devnet',
   },
   {
-    id: 'usb-scrcpy',
+    id: 'usb-run',
     stepNum: '06',
-    title: 'Opsional: Mirror Layar HP ke Laptop untuk Presentasi Juri',
+    title: 'Boot Custom Dev Client (or Reload JS in 1 Second)',
     detail:
-      'Gunakan scrcpy agar juri melihat langsung layar HP fisik saat demo Screen Curtain & Phantom signing sambil kamu memegang HP dengan getaran nyata.',
-    commandUsb: 'scrcpy --stay-awake --window-title "Bicara Live Demo"',
+      'Gate B is 100% pure JS — if your Custom Dev Client APK is already installed on OPPO, just start Metro and press r to reload. For a fresh device, compile once with expo run:android.',
+    commandUsb: 'cd mobile && npx expo start --dev-client   # First install: npx expo run:android',
   },
 ];
 
 export const BUILD_SCOPE_ITEMS: BuildScopeItem[] = [
   {
-    id: 'scope-step-1',
-    title: 'Step 1 · Expo Custom Dev Build + Polyfills + Physical Haptics + Voice Proxy',
-    bucket: 'hackathon',
-    stageLabel: 'Step 1 (Done in Scaffold)',
-    status: 'Scaffolded (Step 1)',
+    id: 'scope-gate-a',
+    title: 'Gate A · Hardware Boot, MWA Connect, ElevenLabs STT/TTS & Jupiter Quote-Only',
+    bucket: 'before',
+    stageLabel: 'Built Before Hackathon (Nov 20)',
+    status: 'Gate A PASS',
     detail:
-      'Entry polyfill.js (react-native-quick-crypto), MWA Track A provider (@wallet-ui/react-native-kit), expo-haptics fisik 4 pola, expo-audio recorder, spoken tabs, serta server proxy /api/health, /api/stt (scribe_v2), dan /api/tts (eleven_flash_v2_5).',
+      'Verified live on OPPO CPH2631 (Android 16): polyfill boot, /api/health over USB, Solflare MWA connect, scribe_v2 (760–774ms), eleven_flash_v2_5 (558–732ms warm), and Jupiter V2 Quote-Only (724ms E2E + HTTP 403 scam token block). Optional Eagle Layer 1 formally deferred.',
     verification:
-      'APK terpasang di HP USB, sambutan suara keluar, getaran fisik terasa, Connect MWA membuka Phantom Devnet, /api/health merespons Connected.',
+      'All real latencies and honest Solflare popup accessibility findings logged in PROGRESS.md.',
   },
   {
-    id: 'scope-step-2',
-    title: 'Step 2 · Live Devnet Balance + Supabase Contacts + Spoken Onboarding',
-    bucket: 'hackathon',
-    stageLabel: 'Step 2 (Next)',
-    status: 'Next Build Step',
+    id: 'scope-gate-b',
+    title: 'Gate B · Live Solana Devnet Transfer (SOL + USDC TransferChecked) & Supabase Sync',
+    bucket: 'before',
+    stageLabel: 'Built Before Hackathon (Nov 23–24)',
+    status: 'Gate B Next',
     detail:
-      'Membaca saldo Devnet USDC & SOL nyata via @solana/kit RPC, menghubungkan tabel Supabase (contacts + transactions), dan menjalankan alur Voice-Guided Onboarding bersuara penuh di HP fisik.',
+      'Pure-JS Solana Devnet transfer builder, ATA rent inspection, Layer 2 random 3-digit challenge, and Supabase + AsyncStorage store are code-complete in /mobile and mirrored 1:1 in the Web Interactive Demo.',
     verification:
-      'Ucapkan "Cek saldo" dan "Buka kontak" di HP membaca data nyata dari Devnet RPC & Supabase.',
+      'Next physical step: execute voice transfer on OPPO -> approve in Solflare -> log verified Solana Devnet Explorer signature.',
   },
   {
-    id: 'scope-step-3',
-    title: 'Step 3 · Live Voice Payment Loop + On-Device Voiceprint (Picovoice Eagle)',
+    id: 'scope-hackathon-window',
+    title: 'Hackathon Window · Layer 2–4 Hardening, Self-Voice Red-Team & accessible-signing Extraction',
     bucket: 'hackathon',
-    stageLabel: 'Step 3',
-    status: 'Next Build Step',
+    stageLabel: 'Built During Hackathon (Nov 27–29, post hackathon-start)',
+    status: 'Hackathon Window',
     detail:
-      'Rekaman expo-audio → /api/stt (scribe_v2) → /api/intent (Gemini 4 Hydrogen) → Factor 1 Voiceprint Gate (@picovoice/eagle-react-native + expo-secure-store) → konfirmasi suara "Ya" → TransferChecked via Phantom MWA → /api/tts (eleven_flash_v2_5).',
+      'Visible in git history after the hackathon-start tag: Layer 3 policy hardening, pre-sign swap re-quote drift check, ethical ElevenLabs self-voice red-team demo, reusable accessible-signing package extraction, and final MIT submission.',
     verification:
-      'Suara User A sukses mengirim 5 USDC Devnet di HP; suara teman (Impostor B) diblokir dengan Triple Pulse haptic.',
-  },
-  {
-    id: 'scope-step-4',
-    title: 'Step 4 · On-Chain Anchor ContactRegistry PDA + 45s Screen Curtain Demo',
-    bucket: 'hackathon',
-    stageLabel: 'Step 4',
-    status: 'Next Build Step',
-    detail:
-      'Deploy program Anchor ContactRegistry (~120 baris Rust) ke Solana Devnet dengan dual-write Supabase + PDA seed lowercase, lalu gladi bersih demo 45 detik Mode Layar Gelap (Screen Curtain) di HP fisik.',
-    verification:
-      'Transaksi add_contact & TransferChecked keduanya terverifikasi di Solana Explorer Devnet.',
+      'Clean commit boundary after hackathon-start tag + timed physical demo recording.',
   },
   {
     id: 'roadmap-mainnet',
-    title: 'Mainnet-Beta Security Audit & Real USDC Launch',
+    title: 'Post-Hackathon · Real Blind-User Validation, Mainnet Audit & Seeker dApp Store',
     bucket: 'roadmap',
-    stageLabel: 'Production Roadmap 01',
+    stageLabel: 'Production Roadmap',
     status: 'Post-Hackathon',
     detail:
-      'Audit independen kontrak ContactRegistry PDA, rate-limiting server proxy, pemantauan anomaly transaksi, dan perpindahan dari Devnet ke Solana Mainnet-Beta.',
-    verification: 'Laporan audit keamanan & deployment Mainnet-Beta terverifikasi.',
-  },
-  {
-    id: 'roadmap-seeker-store',
-    title: 'Solana Seeker dApp Store & Hardware Seed Vault Attestation',
-    bucket: 'roadmap',
-    stageLabel: 'Production Roadmap 02',
-    status: 'Post-Hackathon',
-    detail:
-      'Rilis APK produksi bertanda tangan ke Solana Mobile dApp Store dengan integrasi langsung hardware Seed Vault attestation di perangkat Seeker.',
-    verification: 'Listing publik di Solana dApp Store.',
-  },
-  {
-    id: 'roadmap-offline-stt',
-    title: 'Offline On-Device STT, Wake-Word ("Halo Bicara") & Bahasa Daerah',
-    bucket: 'roadmap',
-    stageLabel: 'Production Roadmap 03',
-    status: 'Post-Hackathon',
-    detail:
-      'Menambahkan wake-word hands-free on-device dan model STT lokal ringan untuk daerah bersinyal lemah plus dukungan aksen Jawa, Sunda, dan Melayu.',
-    verification: 'Perintah navigasi & cek kontak bekerja tanpa koneksi internet stabil.',
+      'Expand TalkBack/VoiceOver user studies, perform independent smart contract & proxy security audit, support Seeker Seed Vault hardware attestation, and enable Mainnet-Beta rollout.',
+    verification: 'Published user study findings, security audit report, and dApp Store listing.',
   },
 ];

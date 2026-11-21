@@ -1,8 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, Copy, ArrowRight, Terminal, ShieldAlert, Zap, Layers } from 'lucide-react';
-import { SDK_AUDIT_ENTRIES } from '@/lib/sdk-audit-data';
+import {
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  Copy,
+  Layers,
+  ShieldAlert,
+  Terminal,
+  Zap,
+} from 'lucide-react';
+import {
+  HACKATHON_PROVENANCE_ROWS,
+  HARDWARE_MEASUREMENT_ROWS,
+  HONEST_KNOWN_LIMITATIONS,
+  SDK_AUDIT_ENTRIES,
+} from '@/lib/sdk-audit-data';
 
 type SolanaTrack = 'kit' | 'web3v1';
 
@@ -21,19 +35,24 @@ export default function ArchitectureWorkspace() {
   };
 
   return (
-    <section aria-label="2026 SDK Migration and Architecture Blueprint" className="space-y-8">
+    <section
+      aria-label="Architecture, Hackathon Provenance Audit, and 2026 SDK Matrix"
+      className="space-y-8"
+    >
+      {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-[#E2E6DC]">
         <div className="space-y-2 max-w-2xl">
           <p className="text-xs font-semibold text-[#457249]">
-            accessible-signing Architecture · Verified 2026 SDK Matrix · Voice Identifies, Hardware Authorizes
+            accessible-signing Architecture · Measured on OPPO Android 16 · Voice Identifies,
+            Hardware Authorizes
           </p>
           <h2 className="font-display text-2xl sm:text-3xl font-black tracking-tight text-[#1E3124] [text-wrap:balance]">
-            accessible-signing &amp; 2026 SDK Architecture Blueprint
+            Architecture, Measured Benchmarks &amp; Hackathon Transparency Audit
           </h2>
           <p className="text-sm sm:text-[15px] text-[#526658] leading-relaxed">
-            Reusable spoken transaction verification architecture verified against Solana Mobile MWA 2.0,
-            @solana/kit, ElevenLabs Scribe v2 &amp; Flash v2.5, Jupiter Swap V2 (Quote-Only), Expo Audio,
-            optional Picovoice Eagle, and Anchor ContactRegistry PDA.
+            Every figure below reflects real physical hardware measurements from OPPO CPH2631
+            (Android 16) and separates pre-hackathon prototyping from Dev3pack hackathon commits
+            after the <span className="font-mono text-[#1E3124]">hackathon-start</span> tag.
           </p>
         </div>
 
@@ -51,7 +70,7 @@ export default function ArchitectureWorkspace() {
                 : 'text-[#526658] hover:text-[#1E3124]'
             }`}
           >
-            Track A: @solana/kit (Recommended)
+            Mobile: @solana/kit
           </button>
           <button
             type="button"
@@ -62,57 +81,166 @@ export default function ArchitectureWorkspace() {
                 : 'text-[#526658] hover:text-[#1E3124]'
             }`}
           >
-            Track B: @solana/web3.js v1
+            Web Demo: @solana/web3.js
           </button>
         </div>
       </div>
 
-      {/* Track Summary Comparison Strip */}
+      {/* Measured Summary Strip (Zero fabricated numbers) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 space-y-1.5 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
           <div className="flex items-center justify-between text-xs text-[#526658]">
-            <span>Active Solana Track</span>
-            <Layers className="w-4 h-4 text-[#356341]" aria-hidden="true" />
-          </div>
-          <p className="text-base font-bold text-[#1E3124]">
-            {track === 'kit' ? '@solana/kit + Codama' : '@solana/web3.js v1.99 + Anchor'}
-          </p>
-          <p className="text-xs text-[#526658] leading-relaxed">
-            {track === 'kit'
-              ? 'Lightest React Native bundle via @wallet-ui/react-native-kit and @solana-program/token.'
-              : 'Drop-in compatibility with @anchor-lang/core IDL and legacy Anchor tutorials.'}
-          </p>
-        </div>
-
-        <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 space-y-1.5 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
-          <div className="flex items-center justify-between text-xs text-[#526658]">
-            <span>Voice Latency Target</span>
+            <span>Measured STT + TTS (OPPO Android 16)</span>
             <Zap className="w-4 h-4 text-[#356341]" aria-hidden="true" />
           </div>
           <p className="text-base font-bold text-[#1E3124] font-mono tabular-nums">
-            4.0s – 6.9s E2E
+            760–774ms STT · 558–732ms TTS
           </p>
           <p className="text-xs text-[#526658] leading-relaxed">
-            Upgrading TTS from multilingual_v2 to eleven_flash_v2_5 saves ~900ms per voice prompt.
+            Live over USB adb reverse using ElevenLabs scribe_v2 (dynamic keyterms) and
+            eleven_flash_v2_5 (warm).
           </p>
         </div>
 
         <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 space-y-1.5 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
           <div className="flex items-center justify-between text-xs text-[#526658]">
-            <span>Critical Mobile Constraint</span>
+            <span>Measured Jupiter V2 Quote-Only</span>
+            <Layers className="w-4 h-4 text-[#356341]" aria-hidden="true" />
+          </div>
+          <p className="text-base font-bold text-[#1E3124] font-mono tabular-nums">
+            724ms E2E · 322ms Server
+          </p>
+          <p className="text-xs text-[#526658] leading-relaxed">
+            Strict USDC ↔ SOL allowlist (transaction: null). Unverified token XYZ blocked with HTTP
+            403.
+          </p>
+        </div>
+
+        <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 space-y-1.5 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
+          <div className="flex items-center justify-between text-xs text-[#526658]">
+            <span>Security Posture (Honest Disclosure)</span>
             <ShieldAlert className="w-4 h-4 text-[#B45309]" aria-hidden="true" />
           </div>
           <p className="text-base font-bold text-[#1E3124]">
-            Custom Dev Client Mandatory
+            Layers 2–5 Active · Eagle Deferred
           </p>
           <p className="text-xs text-[#526658] leading-relaxed">
-            Expo Go cannot invoke Android MWA Intents. Build locally with npx expo run:android.
+            Optional Layer 1 voiceprint deferred post-Gate B; external Solflare popup requires sight
+            to approve.
           </p>
         </div>
       </div>
 
-      {/* 6 SDK Audit Cards */}
+      {/* Section 1: Transparent Provenance Table (Built Before vs During Hackathon) */}
+      <div className="bg-white border border-[#E2E6DC] rounded-2xl p-5 sm:p-6 space-y-4 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
+        <div className="space-y-1 pb-3 border-b border-[#E9EDE3]">
+          <h3 className="text-base font-bold text-[#1E3124]">
+            01. Hackathon Provenance Split (Built Before vs. During Hackathon)
+          </h3>
+          <p className="text-xs text-[#526658]">
+            Mirrored verbatim from root <span className="font-mono text-[#1E3124]">README.md</span>{' '}
+            and <span className="font-mono text-[#1E3124]">bicara-docs/PROGRESS.md</span> · MIT
+            License.
+          </p>
+        </div>
+
+        <div className="divide-y divide-[#ECEFE6]">
+          {HACKATHON_PROVENANCE_ROWS.map((row) => (
+            <div
+              key={row.bucket}
+              className="py-4 first:pt-1 last:pb-0 grid grid-cols-1 lg:grid-cols-12 gap-3 text-xs"
+            >
+              <div className="lg:col-span-3 space-y-0.5">
+                <p className="font-bold text-sm text-[#1E3124]">{row.bucket}</p>
+                <p className="font-mono text-[11px] text-[#526658]">{row.window}</p>
+              </div>
+              <div className="lg:col-span-6 text-[#3B4F40] leading-relaxed">{row.scope}</div>
+              <div className="lg:col-span-3 lg:text-right font-mono font-semibold text-[#2E6B40]">
+                {row.status}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Section 2: Real Hardware Measurement Log + Honest Limitations */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        <div className="xl:col-span-7 bg-white border border-[#E2E6DC] rounded-2xl p-5 sm:p-6 space-y-4 shadow-[0_6px_20px_rgba(30,49,36,0.04)]">
+          <div className="space-y-1 pb-3 border-b border-[#E9EDE3]">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-[#356341]" aria-hidden="true" />
+              <h3 className="text-base font-bold text-[#1E3124]">
+                02. Physical Hardware Measurement Log (OPPO CPH2631 · Android 16)
+              </h3>
+            </div>
+            <p className="text-xs text-[#526658]">
+              Real recorded results from Gate A &amp; current Gate B readiness.
+            </p>
+          </div>
+
+          <div className="divide-y divide-[#ECEFE6]">
+            {HARDWARE_MEASUREMENT_ROWS.map((item) => {
+              const statusColor =
+                item.status === 'PASS'
+                  ? 'text-[#2E6B40]'
+                  : item.status === 'MEASURED'
+                    ? 'text-[#1D4ED8]'
+                    : item.status === 'DEFERRED'
+                      ? 'text-[#B45309]'
+                      : 'text-[#356341]';
+              return (
+                <div key={item.check} className="py-3 first:pt-0 last:pb-0 space-y-1 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-[#1E3124]">{item.check}</span>
+                    <span className={`font-mono font-bold shrink-0 ${statusColor}`}>
+                      {item.status}
+                    </span>
+                  </div>
+                  <p className="text-[#526658] leading-relaxed">{item.measuredValue}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="xl:col-span-5 bg-[#FAF7F0] border border-[#E6DFC8] rounded-2xl p-5 sm:p-6 space-y-4">
+          <div className="space-y-1 pb-3 border-b border-[#EAE3CE]">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-[#B45309]" aria-hidden="true" />
+              <h3 className="text-base font-bold text-[#1E3124]">
+                03. Honest Known Limitations
+              </h3>
+            </div>
+            <p className="text-xs text-[#6B5D3E]">
+              Explicit disclosures so judges evaluate real engineering rather than pitch hype.
+            </p>
+          </div>
+
+          <div className="divide-y divide-[#EDE6D4]">
+            {HONEST_KNOWN_LIMITATIONS.map((lim) => (
+              <div key={lim.title} className="py-3.5 first:pt-0 last:pb-0 space-y-1 text-xs">
+                <p className="font-bold text-[#1E3124]">{lim.title}</p>
+                <p className="text-[#526658] leading-relaxed">{lim.reality}</p>
+                <p className="text-[#356341] leading-relaxed font-medium">
+                  Mitigation: {lim.mitigation}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Section 4: Verified 2026 SDK Audit Cards */}
       <div className="space-y-4">
+        <div className="space-y-1">
+          <h3 className="text-base font-bold text-[#1E3124]">
+            04. Verified 2026 SDK &amp; Security Layer Breakdown
+          </h3>
+          <p className="text-xs text-[#526658]">
+            Exact packages, protocol boundaries, and live code patterns running in /mobile and web.
+          </p>
+        </div>
+
         {SDK_AUDIT_ENTRIES.map((entry, idx) => {
           const activeSnippet =
             track === 'web3v1' && entry.snippetWeb3v1 ? entry.snippetWeb3v1 : entry.snippetKit;
@@ -131,18 +259,18 @@ export default function ArchitectureWorkspace() {
               <div className="p-5 sm:p-6 grid grid-cols-1 xl:grid-cols-12 gap-6">
                 <div className="xl:col-span-5 space-y-4">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-xs text-[#526658]">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-[#526658]">
                       <span className="font-mono tabular-nums">0{idx + 1}.</span>
-                      <span>{entry.layer}</span>
+                      <span className={`font-semibold ${impactColor}`}>{entry.impact}</span>
                       <span aria-hidden="true">·</span>
-                      <span className={`font-semibold ${impactColor}`}>{entry.impact} Update</span>
+                      <span className="font-mono text-[#2E6B40]">{entry.measuredStatus}</span>
                     </div>
-                    <h3 className="text-lg font-bold text-[#1E3124]">{entry.layer}</h3>
+                    <h4 className="text-lg font-bold text-[#1E3124]">{entry.layer}</h4>
                   </div>
 
                   <div className="space-y-2 text-xs">
                     <div className="bg-[#FAF9F5] border border-[#E6EAE0] rounded-xl p-3 space-y-1">
-                      <div className="text-[#788A7D]">Previous Draft Spec</div>
+                      <div className="text-[#788A7D]">Previous Approach</div>
                       <div className="font-mono text-[#687A6D] line-through decoration-[#9BA99F] break-words">
                         {entry.oldSpec}
                       </div>
@@ -151,7 +279,7 @@ export default function ArchitectureWorkspace() {
                       <ArrowRight className="w-3.5 h-3.5 rotate-90" />
                     </div>
                     <div className="bg-[#F2F7EE] border border-[#C6DBC2] rounded-xl p-3 space-y-1">
-                      <div className="text-[#2E6B40] font-semibold">Verified 2026 Target</div>
+                      <div className="text-[#2E6B40] font-semibold">Current Verified Implementation</div>
                       <div className="font-mono text-[#1E3124] break-words">
                         {entry.verified2026}
                       </div>
@@ -164,13 +292,13 @@ export default function ArchitectureWorkspace() {
                     <div className="flex items-center justify-between text-xs text-[#526658]">
                       <span className="inline-flex items-center gap-1.5">
                         <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
-                        Install Command
+                        Command
                       </span>
                       <button
                         type="button"
                         onClick={() => handleCopy(`${entry.id}-cmd`, entry.installCmd)}
                         className="inline-flex items-center gap-1 text-xs text-[#526658] hover:text-[#1E3124] transition-colors cursor-pointer whitespace-nowrap"
-                        aria-label={`Copy install command for ${entry.layer}`}
+                        aria-label={`Copy command for ${entry.layer}`}
                       >
                         {copiedId === `${entry.id}-cmd` ? (
                           <>
@@ -195,14 +323,14 @@ export default function ArchitectureWorkspace() {
                   <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#233228] border border-[#2B3A30] border-b-0 rounded-t-xl text-xs text-[#C7D6CA]">
                     <span className="font-mono">
                       {track === 'web3v1' && entry.snippetWeb3v1
-                        ? 'Reference Pattern · Web3.js v1'
-                        : 'Reference Pattern · 2026 Recommended'}
+                        ? 'Web Demo Pattern · @solana/web3.js'
+                        : 'Mobile Pattern · @solana/kit'}
                     </span>
                     <button
                       type="button"
                       onClick={() => handleCopy(`${entry.id}-code`, activeSnippet)}
-                      className="inline-flex items-center gap-1.5 text-xs text-[#C7D6CA] hover:text-white transition-colors cursor-pointer whitespace-nowrap"
-                      aria-label={`Copy code snippet for ${entry.layer}`}
+                      className="inline-flex items-center gap-1 text-xs text-[#D8E5DA] hover:text-white transition-colors cursor-pointer whitespace-nowrap"
+                      aria-label={`Copy code pattern for ${entry.layer}`}
                     >
                       {copiedId === `${entry.id}-code` ? (
                         <>
@@ -212,12 +340,12 @@ export default function ArchitectureWorkspace() {
                       ) : (
                         <>
                           <Copy className="w-3.5 h-3.5" />
-                          <span>Copy Snippet</span>
+                          <span>Copy Pattern</span>
                         </>
                       )}
                     </button>
                   </div>
-                  <pre className="flex-1 bg-[#1C2820] border border-[#2B3A30] rounded-b-xl p-4 text-xs font-mono text-[#EEF3EC] leading-relaxed overflow-x-auto">
+                  <pre className="flex-1 bg-[#1C2820] border border-[#2B3A30] rounded-b-xl p-4 text-xs font-mono text-[#EEF3EC] overflow-x-auto leading-relaxed">
                     <code>{activeSnippet}</code>
                   </pre>
                 </div>

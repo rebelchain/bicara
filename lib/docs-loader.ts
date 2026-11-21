@@ -12,6 +12,14 @@ export interface BicaraDocFile {
 
 const DOC_MANIFEST: Array<Omit<BicaraDocFile, 'content'>> = [
   {
+    id: 'readme',
+    filename: 'README.md',
+    relativePath: 'README.md',
+    category: 'Root',
+    summary:
+      'Public judge entry point: Built Before vs. During Hackathon split, OPPO Android 16 Gate A/B/C measurements, honest limitations, and live Devnet quickstart.',
+  },
+  {
     id: 'claude',
     filename: 'CLAUDE.md',
     relativePath: 'bicara-docs/CLAUDE.md',

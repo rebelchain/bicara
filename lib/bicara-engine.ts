@@ -72,6 +72,8 @@ export interface TransactionRecord {
   txSignature: string;
   status: 'confirmed' | 'failed';
   resolutionSource: 'supabase' | 'on_chain';
+  isLiveDevnet?: boolean;
+  explorerUrl?: string;
   createdAt: string;
 }
 

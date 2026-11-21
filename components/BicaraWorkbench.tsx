@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, AudioLines, Code2, Mic } from 'lucide-react';
+import { ArrowLeft, AudioLines } from 'lucide-react';
 import {
   SEED_CONTACTS,
   SEED_TRANSACTIONS,
@@ -55,20 +55,29 @@ export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchPr
     nextSenderBalance: number,
     recipientId: string
   ) => {
-    setSenderBalanceUsdc(nextSenderBalance);
-    setSenderBalanceSol((sol) => Math.max(0, Number((sol - 0.000005).toFixed(6))));
+    if (!tx.isLiveDevnet) {
+      if (tx.currency === 'SOL') {
+        setSenderBalanceSol(nextSenderBalance);
+      } else {
+        setSenderBalanceUsdc(nextSenderBalance);
+        setSenderBalanceSol((sol) => Math.max(0, Number((sol - 0.000005).toFixed(6))));
+      }
+      setContacts((prev) =>
+        prev.map((c) =>
+          c.id === recipientId
+            ? {
+                ...c,
+                hasUsdcAta: tx.currency === 'USDC' ? true : c.hasUsdcAta,
+                balanceUsdc:
+                  tx.currency === 'USDC'
+                    ? Number((c.balanceUsdc + tx.amountUsdc).toFixed(6))
+                    : c.balanceUsdc,
+              }
+            : c
+        )
+      );
+    }
     setTransactions((prev) => [tx, ...prev]);
-    setContacts((prev) =>
-      prev.map((c) =>
-        c.id === recipientId
-          ? {
-              ...c,
-              hasUsdcAta: true,
-              balanceUsdc: Number((c.balanceUsdc + tx.amountUsdc).toFixed(6)),
-            }
-          : c
-      )
-    );
   };
 
   const handleResetBalances = () => {
@@ -215,59 +224,20 @@ export default function BicaraWorkbench({ docs, mobileFiles }: BicaraWorkbenchPr
           )}
 
           {surfaceMode === 'demo' && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-[#E2E6DC]">
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-[#457249]">
-                    Interactive Browser Sandbox
-                  </p>
-                  <h1 className="font-display text-2xl sm:text-3xl font-black tracking-tight text-[#1E3124]">
-                    Try Bicara&apos;s Spoken Verification Flow
-                  </h1>
-                  <p className="text-sm text-[#526658] max-w-2xl">
-                    Speak or tap a sample command below to test eyes-free narration, screen curtain
-                    mode, and pre-sign confirmation.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDemoCommand('Send 5 USDC to Ahmad');
-                      setDemoTriggerNonce((n) => n + 1);
-                    }}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-[#356341] hover:bg-[#2A5135] rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-                  >
-                    <Mic className="w-3.5 h-3.5" aria-hidden="true" />
-                    <span>Run Sample Send</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenDevelopers('architecture')}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-[#1E3124] bg-white hover:border-[#356341] border border-[#D4DDD0] rounded-full transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-                  >
-                    <Code2 className="w-3.5 h-3.5 text-[#356341]" aria-hidden="true" />
-                    <span>Developers &amp; Judges</span>
-                  </button>
-                </div>
-              </div>
-
-              <PrototypeWorkspace
-                contacts={contacts}
-                transactions={transactions}
-                senderBalanceUsdc={senderBalanceUsdc}
-                senderBalanceSol={senderBalanceSol}
-                walletConnected={walletConnected}
-                onToggleWallet={() => setWalletConnected((v) => !v)}
-                onAddContact={handleAddContact}
-                onDeleteContact={handleDeleteContact}
-                onCompleteTransfer={handleCompleteTransfer}
-                onResetBalances={handleResetBalances}
-                demoTriggerNonce={demoTriggerNonce}
-                demoCommand={demoCommand}
-              />
-            </div>
+            <PrototypeWorkspace
+              contacts={contacts}
+              transactions={transactions}
+              senderBalanceUsdc={senderBalanceUsdc}
+              senderBalanceSol={senderBalanceSol}
+              walletConnected={walletConnected}
+              onToggleWallet={() => setWalletConnected((v) => !v)}
+              onAddContact={handleAddContact}
+              onDeleteContact={handleDeleteContact}
+              onCompleteTransfer={handleCompleteTransfer}
+              onResetBalances={handleResetBalances}
+              demoTriggerNonce={demoTriggerNonce}
+              demoCommand={demoCommand}
+            />
           )}
 
           {surfaceMode === 'developers' && (

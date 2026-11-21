@@ -24,7 +24,7 @@ export async function GET() {
     },
     models: {
       stt: 'scribe_v2',
-      nlu: 'gemini-3.1-flash-lite',
+      nlu: 'gemini-3.1-flash-lite (failover: gemini-4-hydrogen)',
       tts: 'eleven_flash_v2_5',
     },
     endpoints: [
