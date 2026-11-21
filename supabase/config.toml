@@ -1,0 +1,23 @@
+# Supabase local & GitHub Integration configuration for Bicara
+# Set Working directory = "." in Supabase Dashboard -> Project Settings -> Integrations -> GitHub
+
+project_id = "bicara"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[db.migrations]
+enabled = true
+schema_paths = []
+
+[db.seed]
+enabled = false
+sql_paths = []
